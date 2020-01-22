@@ -9,11 +9,30 @@ class APIShim:
         categories, descriptions, etc
     """
 
-    def __init__(self):
+    def __init__(self, ebay_obj):
+        """
+            Contains the initial values that this object will
+            have when it is created.
+
+            `ebay_obj` is an instance of `shim.ebay.Ebay`, and
+            we reference it to be able to set various data
+            (right now, we only set `seller_list`)
+        """
+        self.ebay = ebay_obj
         self.date_range = {}
         self.seller_list = {}
 
-    def _check_date_type(self, the_date=None):
+    def __setattr__(self, name, value):
+        """
+            Whenever `self.seller_list` is updated, carry
+            the information over to the `self.ebay` object
+        """
+        super(APIShim, self).__setattr__(name, value)
+
+        if name == 'seller_list' and self.ebay:
+            self.ebay.__setattr__(name, value)
+
+    def __check_date_type(self, the_date=None):
         """
             Determines if the provided date is either a
             datetime object, a string, or NoneType.
@@ -59,10 +78,10 @@ class APIShim:
             date range. `End` will search for listings that are ending within the date range.
         """
 
-        start_date = self._check_date_type(start_date)
+        start_date = self.__check_date_type(start_date)
 
         if stop_date != None:
-            stop_date = self._check_date_type(stop_date)
+            stop_date = self.__check_date_type(stop_date)
         else:
             # If the stop date was not defined, set the range
             # based on `days`, which defaults to the same day
