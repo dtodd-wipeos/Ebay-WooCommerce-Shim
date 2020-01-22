@@ -6,7 +6,7 @@ from optparse import OptionParser
 from ebaysdk.trading import Connection as Trading
 from ebaysdk.exception import ConnectionError
 
-from shim.APIShim import APIShim
+from shim.API import APIShim
 
 def parse_options():
     parser = OptionParser(usage="Usage: %prog [options]")
