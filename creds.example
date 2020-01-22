@@ -1,0 +1,7 @@
+#!/bin/bash
+
+export ebay_domain=api.sandbox.ebay.com
+export ebay_appid=
+export ebay_certid=
+export ebay_devid=
+export ebay_token=
