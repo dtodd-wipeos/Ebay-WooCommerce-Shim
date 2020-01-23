@@ -24,4 +24,4 @@ if __name__ == '__main__':
     shim = APIShim()
     shim.set_date_range(start_date='2019-01-01').set_range_filter()
 
-    print(shim.try_command('get_items'))
+    shim.try_command('get_items')

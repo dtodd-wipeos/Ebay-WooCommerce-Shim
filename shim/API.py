@@ -144,15 +144,39 @@ class APIShim:
 
         return self
 
+    def __print_response(self, full=False):
+        if self.ebay.warnings():
+            print("Warnings" + self.ebay.warnings())
+
+        if self.ebay.response.content:
+            print("Call Success: %s in length" % (self.ebay.response.content))
+
+        print("Response Code: %s" % (self.ebay.response_code()))
+        print("Response XML: %s" % (self.ebay.response.dom()))
+
+        if full:
+            print(self.ebay.response.content)
+            print(self.ebay.response.json())
+            print("Response Reply: %s" % (self.ebay.response.reply))
+        else:
+            response = "%s" % (self.ebay.response.dict())
+            reply = "%s" % (self.ebay.response.reply)
+            print("Response Dictionary: %s..." % (response[:100]))
+            print("Response Reply: %s..." % (reply[:100]))
+
+        return self
+
     def __get_items(self):
         """
             Returns a dictionary containing all items that were found
             with the search filter, or None if no items were found
         """
-        return self.ebay.execute(
+        self.ebay.execute(
             'GetSellerEvents',
             self.seller_list
         ).dict().get('ItemArray', None)
+
+        return self
 
     def try_command(self, command):
         """
@@ -172,8 +196,10 @@ class APIShim:
 
         try:
             if command == 'get_items':
-                return self.__get_items()
+                self.__get_items().__print_response()
 
         except ConnectionError as e:
             print(e)
             print(e.response.dict())
+
+        return self
