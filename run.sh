@@ -1,4 +1,4 @@
 #!/bin/bash
 
-source creds
+source creds.sandbox
 python server.py
