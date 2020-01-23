@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
+import os
 import datetime
+from ebaysdk.trading import Connection as Trading
+from ebaysdk.exception import ConnectionError
 
 class APIShim:
     """
@@ -9,28 +12,35 @@ class APIShim:
         categories, descriptions, etc
     """
 
-    def __init__(self, ebay_obj):
+    def __init__(self):
         """
             Contains the initial values that this object will
             have when it is created.
-
-            `ebay_obj` is an instance of `shim.ebay.Ebay`, and
-            we reference it to be able to set various data
-            (right now, we only set `seller_list`)
         """
-        self.ebay = ebay_obj
+        self.__available_commands = [
+            'get_items'
+        ]
+
+        self.ebay = self.__get_api_connection()
         self.date_range = {}
         self.seller_list = {}
 
-    def __setattr__(self, name, value):
+    def __get_api_connection(self):
         """
-            Whenever `self.seller_list` is updated, carry
-            the information over to the `self.ebay` object
-        """
-        super(APIShim, self).__setattr__(name, value)
+            Creates a new connection to the ebay API (via the SDK)
 
-        if name == 'seller_list' and self.ebay:
-            self.ebay.__setattr__(name, value)
+            All parameters are set via environment variables (see creds.example)
+        """
+        return Trading(
+            domain=os.environ.get('ebay_domain', False),
+            # compatibility=int(os.environ.get('ebay_api_version', 648)),
+            appid=os.environ.get('ebay_appid', False),
+            certid=os.environ.get('ebay_certid', False),
+            devid=os.environ.get('ebay_devid', False),
+            token=os.environ.get('ebay_token', False),
+            config_file=None,
+            debug=False
+        )
 
     def __check_date_type(self, the_date=None):
         """
@@ -134,3 +144,36 @@ class APIShim:
 
         return self
 
+    def __get_items(self):
+        """
+            Returns a dictionary containing all items that were found
+            with the search filter, or None if no items were found
+        """
+        return self.ebay.execute(
+            'GetSellerEvents',
+            self.seller_list
+        ).dict().get('ItemArray', None)
+
+    def try_command(self, command):
+        """
+            Wrapper for running methods.
+
+            Verifies that we support the method, raising a NameError if not
+            and then runs the method specified in the `command` argument in
+            a try, except statement
+
+            `command` is a string that is inside `self.__available_commands`
+        """
+        err_msg = "Command %s is unrecognized. Supported queries are: %s" % (
+            command, ', '.join(self.__available_commands))
+
+        if command not in self.__available_commands:
+            raise NameError(err_msg)
+
+        try:
+            if command == 'get_items':
+                return self.__get_items()
+
+        except ConnectionError as e:
+            print(e)
+            print(e.response.dict())
