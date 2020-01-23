@@ -24,6 +24,7 @@ class APIShim:
         self.ebay = self.__get_api_connection()
         self.date_range = {}
         self.seller_list = {}
+        self.got_items = {}
 
     def __get_api_connection(self):
         """
@@ -175,6 +176,9 @@ class APIShim:
             'GetSellerEvents',
             self.seller_list
         ).dict().get('ItemArray', None)
+
+        if self.ebay.response.content:
+            self.got_items = self.ebay.response.dict()
 
         return self
 
