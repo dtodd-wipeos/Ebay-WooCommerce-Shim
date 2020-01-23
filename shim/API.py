@@ -72,10 +72,10 @@ class APIShim:
             `start_date` is optional, and when not defined defaults to today. Expected
             to be either a datetime object, or a date string.
 
-            `days` is optional, and when not defined defaults to today. When it is
-            defined, and `stop_date` is not defined, it will set the range from that.
-            Negative numbers are supported, and when used, will reverse the start and
-            stop dates
+            `days` is optional, and when not defined defaults to the same date as the
+            `start_date`. When it is defined, and `stop_date` is not defined, it will
+            set the range from that. Negative numbers are supported, and when used,
+            will reverse the start and stop dates
 
             `stop_date` is optional, and when not defined defaults to today + `days`.
             Expected to be either a datetime object, or a date string
