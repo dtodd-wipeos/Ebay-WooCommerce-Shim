@@ -22,6 +22,6 @@ if __name__ == '__main__':
     (opts, args) = parse_options()
 
     shim = APIShim()
-    shim.set_date_range(start_date='2019-01-01').set_range_filter()
+    shim.set_date_range(start_date='2020-01-01', days=23).set_range_filter()
 
     shim.try_command('get_items')
