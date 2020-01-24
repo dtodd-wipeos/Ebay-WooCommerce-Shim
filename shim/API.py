@@ -39,6 +39,7 @@ class APIShim:
         self.seller_list = {}
         # Contains all item ids that are currently active (defined at `get_item_ids`)
         self.got_item_ids = []
+        self.got_items = {}
 
     def __get_api_connection(self):
         """
@@ -209,10 +210,20 @@ class APIShim:
         if result is not None:
             items_found, items_active, items_inactive = 0, 0, 0
 
-            for item in result['Item']:
+            # Ensure that the response is a list containing one or more dictionaries
+            try:
+                for key in result['Item']:
+                    _ = key['ItemID']
+            except TypeError:
+                # Only one item was returned
+                result = [ result['Item'] ]
+            else:
+                result = result['Item']
+
+            for item in result:
                 items_found += 1
 
-                if item.get('SellingStatus').get('ListingStatus') == 'Active':
+                if item['SellingStatus']['ListingStatus'] == 'Active':
                     items_active += 1
                     self.got_item_ids.append(item.get('ItemID'))
                 else:
@@ -227,16 +238,20 @@ class APIShim:
         return self
 
     def __get_items(self, arguments={}):
-        for item_id in self.got_item_ids:
-            # Get specific details about the item,
-            # such as specs and configuration
-            arguments['IncludeItemSpecifics'] = True
+        if self.got_item_ids:
+            for item_id in self.got_item_ids:
+                # Get specific details about the item,
+                # such as specs and configuration
+                arguments['IncludeItemSpecifics'] = True
+                arguments['ItemID'] = item_id
 
+                result = self.ebay.execute(
+                    'GetItem', arguments
+                ).dict()
 
+                self.got_items[item_id] = result
 
-
-
-        pass
+        return self
 
     def try_command(self, command):
         """
@@ -258,6 +273,8 @@ class APIShim:
         try:
             if command == 'get_item_ids':
                 self.__get_seller_events().__print_response()
+            elif command == 'get_items':
+                self.__get_items().__print_response()
             else:
                 self.log.debug(err_msg)
                 raise NameError(err_msg)
