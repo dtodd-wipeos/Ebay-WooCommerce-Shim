@@ -248,7 +248,7 @@ class APIShim:
 
             `command` is a string that is inside `self.__available_commands`
         """
-        err_msg = "Command %s is unrecognized. Supported queries are: %s" % (
+        err_msg = "Command %s is unrecognized. Supported commands are: %s" % (
             command, ', '.join(self.__available_commands))
 
         if command not in self.__available_commands:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from pprint import pprint
 from optparse import OptionParser
 from shim.API import APIShim
 
@@ -22,6 +23,9 @@ if __name__ == '__main__':
     (opts, args) = parse_options()
 
     shim = APIShim()
-    shim.set_date_range(start_date='2020-01-01', days=23).set_range_filter()
+    shim.set_date_range(start_date='2020-01-01', days=1).set_range_filter()
 
-    shim.try_command('get_items')
+    shim.try_command('get_item_ids')
+    if shim.got_item_ids:
+        for item in shim.got_item_ids:
+            pprint(item)
