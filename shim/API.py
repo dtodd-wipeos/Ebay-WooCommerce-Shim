@@ -2,6 +2,7 @@
 
 import os
 import datetime
+import logging
 from ebaysdk.trading import Connection as Trading
 from ebaysdk.exception import ConnectionError
 
@@ -17,14 +18,27 @@ class APIShim:
             Contains the initial values that this object will
             have when it is created.
         """
+
+        # Setup logging
+        self.log = logging.getLogger(__name__)
+        self.log.setLevel(os.environ.get('log_level', 'INFO'))
+
+        # Commands that are available for `self.try_command`
         self.__available_commands = [
+            'get_item_ids',
             'get_items'
         ]
 
+        # Setup connection to SDK
         self.ebay = self.__get_api_connection()
+
+        # Contains the range of listings to search (defined at `set_date_range`)
         self.date_range = {}
+        # Contains the filters that are applied to
+        # seller events searching (defined at `set_range_filter`)
         self.seller_list = {}
-        self.got_items = {}
+        # Contains all item ids that are currently active (defined at `get_item_ids`)
+        self.got_item_ids = []
 
     def __get_api_connection(self):
         """
@@ -32,6 +46,7 @@ class APIShim:
 
             All parameters are set via environment variables (see creds.example)
         """
+        self.log.info('Opening new API connection to %s' % (os.environ.get('ebay_domain', False)))
         return Trading(
             domain=os.environ.get('ebay_domain', False),
             # compatibility=int(os.environ.get('ebay_api_version', 648)),
@@ -58,12 +73,17 @@ class APIShim:
         """
         if the_date != None:
             if type(the_date) == type(datetime.datetime.today()):
+                self.log.debug('Provided date is a datetime object, passing it through')
                 return the_date
             elif type(the_date) == type(''):
+                warning = 'Provided date %s is a string, attempting conversion' % (the_date)
+                self.log.warning(warning)
                 try:
                     return datetime.datetime.strptime(the_date, '%Y-%m-%d')
                 except ValueError:
+                    self.log.warning('Unable to convert, defaulting to today')
                     return datetime.datetime.today()
+        self.log.warning('No Date provided, defaulting to today')
         return datetime.datetime.today()
 
     def set_date_range(self, start_date=None, days=0, stop_date=None, range_type='Start'):
@@ -96,6 +116,7 @@ class APIShim:
         else:
             # If the stop date was not defined, set the range
             # based on `days`, which defaults to the same day
+            self.log.warning('No Stop Date provided, defaulting to Start Date + %d' % (days))
             stop_date = start_date + datetime.timedelta(days)
         
         # Convert dates into ISO 8601 (required by the API)
@@ -106,6 +127,7 @@ class APIShim:
 
         # If the Stop date is in the past, reverse order
         if stop_date < start_date:
+            self.log.info('Stop Date is before Start Date, swapping places')
             stop_date, start_date = start_date, stop_date
 
         self.date_range = {
@@ -137,6 +159,7 @@ class APIShim:
         for the_filter in filters:
             try:
                 del self.seller_list[the_filter]
+                self.log.debug('Filter: %s was already in the seller list, deleted' % (the_filter))
             except KeyError:
                 continue
 
@@ -147,40 +170,73 @@ class APIShim:
 
     def __print_response(self, full=False):
         if self.ebay.warnings():
+            for warning in self.ebay.warnings().split(','):
+                self.log.warning(warning)
+
             print("Warnings" + self.ebay.warnings())
 
-        if self.ebay.response.content:
+        if self.ebay.response.content and full:
             print("Call Success: %s in length" % (self.ebay.response.content))
 
-        print("Response Code: %s" % (self.ebay.response_code()))
-        print("Response XML: %s" % (self.ebay.response.dom()))
+        self.log.info("Response Code: %s" % (self.ebay.response_code()))
 
         if full:
-            print(self.ebay.response.content)
-            print(self.ebay.response.json())
-            print("Response Reply: %s" % (self.ebay.response.reply))
+            self.log.info(self.ebay.response.content)
+            self.log.info(self.ebay.response.json())
+            self.log.info("Response Reply: %s" % (self.ebay.response.reply))
         else:
             response = "%s" % (self.ebay.response.dict())
             reply = "%s" % (self.ebay.response.reply)
-            print("Response Dictionary: %s..." % (response[:100]))
-            print("Response Reply: %s..." % (reply[:100]))
+            self.log.info("Response Dictionary: %s..." % (response[:100]))
+            self.log.info("Response Reply: %s..." % (reply[:100]))
 
         return self
 
-    def __get_items(self):
+    def __get_seller_events(self):
         """
-            Returns a dictionary containing all items that were found
-            with the search filter, or None if no items were found
+            Gets a base description of all items that were found as part
+            of the date range seach. The only useful information in this
+            case is the "ItemID", "Title", and maybe the EndTime. 
+
+            As of now, this will create a list of only the ItemIDs, to be
+            fetched by `self.__get_items()`
         """
-        self.ebay.execute(
+        result = self.ebay.execute(
             'GetSellerEvents',
             self.seller_list
         ).dict().get('ItemArray', None)
 
-        if self.ebay.response.content:
-            self.got_items = self.ebay.response.dict()
+        if result is not None:
+            items_found, items_active, items_inactive = 0, 0, 0
+
+            for item in result['Item']:
+                items_found += 1
+
+                if item.get('SellingStatus').get('ListingStatus') == 'Active':
+                    items_active += 1
+                    self.got_item_ids.append(item.get('ItemID'))
+                else:
+                    items_inactive += 1
+                    self.log.warning('Item %s is not active, ignoring it' % (item.get('ItemID')))
+
+            msg = '%d Items Found, with %d Items Active and %d Items inactive'
+            self.log.info(msg % (items_found, items_active, items_inactive))
+        else:
+            self.log.error('Got no items from the search. Try adjusting the date range')
 
         return self
+
+    def __get_items(self, arguments={}):
+        for item_id in self.got_item_ids:
+            # Get specific details about the item,
+            # such as specs and configuration
+            arguments['IncludeItemSpecifics'] = True
+
+
+
+
+
+        pass
 
     def try_command(self, command):
         """
@@ -196,14 +252,18 @@ class APIShim:
             command, ', '.join(self.__available_commands))
 
         if command not in self.__available_commands:
+            self.log.debug(err_msg)
             raise NameError(err_msg)
 
         try:
-            if command == 'get_items':
-                self.__get_items().__print_response()
+            if command == 'get_item_ids':
+                self.__get_seller_events().__print_response()
+            else:
+                self.log.debug(err_msg)
+                raise NameError(err_msg)
 
         except ConnectionError as e:
-            print(e)
-            print(e.response.dict())
+            self.log.exception(e)
+            self.log.exception(e.response.dict())
 
         return self
