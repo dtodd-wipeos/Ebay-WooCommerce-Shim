@@ -3,3 +3,4 @@ creds.sandbox
 __pycache__
 .vscode
 Pipfile.lock
+*.log
