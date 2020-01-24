@@ -199,8 +199,8 @@ class APIShim:
             of the date range seach. The only useful information in this
             case is the "ItemID", "Title", and maybe the EndTime. 
 
-            As of now, this will create a list of only the ItemIDs, to be
-            fetched by `self.__get_items()`
+            As of now, this will create a list of only the active ItemIDs,
+            to be fetched by `self.__get_items()`
         """
         result = self.ebay.execute(
             'GetSellerEvents',
@@ -237,21 +237,57 @@ class APIShim:
 
         return self
 
-    def __get_items(self, arguments={}):
+    def __get_items(self):
+        """
+            If there are item ids, this method will iterate over them
+            and send an API request for each item that is active (required
+            in order to get details such as description, etc). Upon getting
+            an item back, its condition code is looked up and set to the
+            human readable version.
+
+            Sets `self.got_items`, which is a dictionary containing a
+            dictionary for each item that was fetched
+        """
         if self.got_item_ids:
             for item_id in self.got_item_ids:
-                # Get specific details about the item,
-                # such as specs and configuration
-                arguments['IncludeItemSpecifics'] = True
-                arguments['ItemID'] = item_id
-
+                # Get the item, with specifc details (specs)
                 result = self.ebay.execute(
-                    'GetItem', arguments
+                    'GetItem',
+                    {
+                        'IncludeItemSpecifics': True,
+                        'ItemID': item_id,
+                    }
                 ).dict()
+
+                # Store the Human Readable version of the condition
+                result['Item']['ConditionID'] = self.__condition_code_lookup(
+                    result['Item']['ConditionID']
+                )
 
                 self.got_items[item_id] = result
 
         return self
+
+    def __condition_code_lookup(self, condition):
+        """
+            Maps the condition codes that ebay stores
+            internally to what they actually appear as
+            on the website
+        """
+        condition = str(condition)
+        switch = {
+                '1000': 'New',
+                '1500': 'New Other',
+                '1750': 'New with defects',
+                '2000': 'Manufacturer Refurbished',
+                '2500': 'Seller Refurbished',
+                '3000': 'Used',
+                '4000': 'Used/Very Good Condition',
+                '5000': 'Used/Good Condition',
+                '6000': 'Used/Acceptable Condition',
+                '7000': 'For Parts/Not Working'
+            }
+        return switch.get(condition, 'N/A')
 
     def try_command(self, command):
         """
@@ -274,6 +310,8 @@ class APIShim:
             if command == 'get_item_ids':
                 self.__get_seller_events().__print_response()
             elif command == 'get_items':
+                if not self.got_item_ids:
+                    self.try_command('get_item_ids')
                 self.__get_items().__print_response()
             else:
                 self.log.debug(err_msg)
