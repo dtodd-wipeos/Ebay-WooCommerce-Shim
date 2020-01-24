@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import datetime
 import logging
 from ebaysdk.trading import Connection as Trading
@@ -21,7 +22,11 @@ class APIShim:
 
         # Setup logging
         self.log = logging.getLogger(__name__)
-        self.log.setLevel(os.environ.get('log_level', 'INFO'))
+        self.log.setLevel(os.environ.get('log_level', 'DEBUG'))
+        log_handler = logging.StreamHandler(sys.stdout)
+        log_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        log_handler.setFormatter(log_format)
+        self.log.addHandler(log_handler)
 
         # Commands that are available for `self.try_command`
         self.__available_commands = [
@@ -259,35 +264,20 @@ class APIShim:
                     }
                 ).dict()
 
-                # Store the Human Readable version of the condition
-                result['Item']['ConditionID'] = self.__condition_code_lookup(
-                    result['Item']['ConditionID']
+                result['Item']['quantity_available'] = (
+                    # Total Quantity
+                    float(result['Item']['Quantity']) -
+                    # Quantity Sold
+                    float(result['Item']['SellingStatus']['QuantitySold'])
                 )
+
+                self.log.debug(result['Item'])
+
+                raise Exception('')
 
                 self.got_items[item_id] = result
 
         return self
-
-    def __condition_code_lookup(self, condition):
-        """
-            Maps the condition codes that ebay stores
-            internally to what they actually appear as
-            on the website
-        """
-        condition = str(condition)
-        switch = {
-                '1000': 'New',
-                '1500': 'New Other',
-                '1750': 'New with defects',
-                '2000': 'Manufacturer Refurbished',
-                '2500': 'Seller Refurbished',
-                '3000': 'Used',
-                '4000': 'Used/Very Good Condition',
-                '5000': 'Used/Good Condition',
-                '6000': 'Used/Acceptable Condition',
-                '7000': 'For Parts/Not Working'
-            }
-        return switch.get(condition, 'N/A')
 
     def try_command(self, command):
         """
