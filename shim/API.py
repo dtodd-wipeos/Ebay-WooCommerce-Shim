@@ -314,21 +314,21 @@ class APIShim:
         msg = 'Got %d items out of %d total from the provided date range filter'
         self.log.info(msg % (self.pagination_received_items, self.pagination_total_items))
 
-        item_array = result.get('ItemArray', None)
-        if item_array is not None:
+        item_list = result.get('ItemArray', None)
+        if item_list is not None:
             items_active, items_inactive = 0, 0
 
             # Ensure that the response is a list containing one or more dictionaries
             try:
-                for key in item_array['Item']:
+                for key in item_list['Item']:
                     _ = key['ItemID']
             except TypeError:
                 # Only one item was returned
-                item_array = [ item_array['Item'] ]
+                item_list = [ item_list['Item'] ]
             else:
-                item_array = item_array['Item']
+                item_list = item_list['Item']
 
-            for item in item_array:
+            for item in item_list:
                 if item['SellingStatus']['ListingStatus'] == 'Active':
                     items_active += 1
                     self.got_items[item.get('ItemID')] = item
