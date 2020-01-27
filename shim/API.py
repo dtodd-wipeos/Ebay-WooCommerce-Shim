@@ -23,28 +23,6 @@ class APIShim:
             have when it is created.
         """
 
-        # Store a local database of items as a cache
-        self.database = sqlite3.connect('ebay_items.db', isolation_level=None)
-        self.cursor = self.database.cursor()
-
-        # Setup logging
-        self.log = logging.getLogger(__name__)
-        self.log.setLevel(os.environ.get('log_level', 'INFO'))
-        log_handler = logging.StreamHandler(sys.stdout)
-        log_format = logging.Formatter('%(asctime)s - %(name)s.%(funcName)s - %(levelname)s - %(message)s')
-        log_handler.setFormatter(log_format)
-        self.log.addHandler(log_handler)
-
-        # Commands that are available for `self.try_command`
-        self.__available_commands = [
-            'get_item_ids',
-            'get_seller_list',
-            'get_items'
-        ]
-
-        # Setup connection to SDK
-        self.ebay = self.__get_api_connection()
-
         # Contains the range of listings to search (defined at `set_date_range`)
         self.date_range = {}
         # Contains the filters that are applied to
@@ -60,6 +38,58 @@ class APIShim:
         self.pagination_total_items = 0
         self.pagination_total_pages = 0
         self.pagination_received_items = 0
+
+        # Setup logging
+        self.log = logging.getLogger(__name__)
+        self.log.setLevel(os.environ.get('log_level', 'INFO'))
+        log_handler = logging.StreamHandler(sys.stdout)
+        log_format = logging.Formatter('%(asctime)s - %(name)s.%(funcName)s - %(levelname)s - %(message)s')
+        log_handler.setFormatter(log_format)
+        self.log.addHandler(log_handler)
+
+        # Store a local database of items as a cache. Autocommit is on
+        self.database = sqlite3.connect('ebay_items.db', isolation_level=None)
+        with self.database:
+            self.cursor = self.database.cursor()
+        self.__create_tables()
+
+        # Setup connection to SDK
+        self.ebay = self.__get_api_connection()
+
+    def __create_tables(self):
+        """
+            Creates a table called `items` and another called `item_metadata`
+            if they don't already exist in the selected database file
+
+            `items` contains the primary information about items that we're
+            interested in, while `item_metadata` contains a key-value store
+            of ItemSpecifics, which is fluid and will generally contain specs
+        """
+        query = """
+            CREATE TABLE IF NOT EXISTS items (
+                itemid INT PRIMARY KEY,
+                active BOOLEAN,
+                total_quantity INT,
+                title TEXT,
+                category TEXT,
+                sku TEXT,
+                condition_name TEXT,
+                condition_description TEXT,
+                description TEXT
+            )
+        """
+        self.cursor.execute(query)
+        query = """
+            CREATE TABLE IF NOT EXISTS item_metadata (
+                itemid INT PRIMARY KEY,
+                key Text,
+                value TEXT
+            )
+        """
+        self.cursor.execute(query)
+
+    def __store_item(self, item):
+        pass
 
     def __get_api_connection(self):
         """
@@ -340,7 +370,11 @@ class APIShim:
             for item in item_list:
                 if item['SellingStatus']['ListingStatus'] == 'Active':
                     items_active += 1
+                    # Store in-memory dictionary of items in case we need them while the class is active
                     self.got_items[item.get('ItemID')] = item
+
+                    # Store the items in the database for use in syncing to wordpress
+                    self.__store_item(item)
                 else:
                     items_inactive += 1
                     self.log.debug('Item %s is not active, ignoring it' % (item.get('ItemID')))
@@ -405,26 +439,39 @@ class APIShim:
             and then runs the method specified in the `command` argument in
             a try, except statement
 
-            `command` is a string that is inside `self.__available_commands`
+            `command` is a string that is inside `__available_commands`
         """
-        err_msg = "Command %s is unrecognized. Supported commands are: %s" % (
-            command, ', '.join(self.__available_commands))
+        __available_commands = [
+            'get_item_ids',
+            'get_seller_list',
+            'get_items'
+        ]
 
-        if command not in self.__available_commands:
+        err_msg = "Command %s is unrecognized. Supported commands are: %s" % (
+            command, ', '.join(__available_commands))
+
+        if command not in __available_commands:
             self.log.debug(err_msg)
             raise NameError(err_msg)
 
         try:
             if command == 'get_item_ids':
                 self.__get_seller_events().__print_response()
+
             elif command == 'get_items':
                 if not self.got_item_ids:
                     self.try_command('get_item_ids')
                 self.__get_items().__print_response()
+
             elif command == 'get_seller_list':
+                # We need to run this at least once to populate
+                # `self.pagination_total_items` and `self.pagination_received_items`
                 self.__get_seller_list().__print_response()
+
+                # If there are still items to get, get them
                 while self.pagination_received_items < self.pagination_total_items:
                     self.__get_seller_list().__print_response()
+
             else:
                 self.log.debug(err_msg)
                 raise NameError(err_msg)
