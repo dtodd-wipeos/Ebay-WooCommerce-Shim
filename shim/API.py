@@ -29,9 +29,9 @@ class APIShim:
 
         # Setup logging
         self.log = logging.getLogger(__name__)
-        self.log.setLevel(os.environ.get('log_level', 'DEBUG'))
+        self.log.setLevel(os.environ.get('log_level', 'INFO'))
         log_handler = logging.StreamHandler(sys.stdout)
-        log_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        log_format = logging.Formatter('%(asctime)s - %(name)s.%(funcName)s - %(levelname)s - %(message)s')
         log_handler.setFormatter(log_format)
         self.log.addHandler(log_handler)
 
@@ -202,14 +202,14 @@ class APIShim:
         self.log.info("Response Code: %s" % (self.ebay.response_code()))
 
         if full:
-            self.log.info(self.ebay.response.content)
-            self.log.info(self.ebay.response.json())
-            self.log.info("Response Reply: %s" % (self.ebay.response.reply))
+            self.log.debug(self.ebay.response.content)
+            self.log.debug(self.ebay.response.json())
+            self.log.debug("Response Reply: %s" % (self.ebay.response.reply))
         else:
             response = "%s" % (self.ebay.response.dict())
             reply = "%s" % (self.ebay.response.reply)
-            self.log.info("Response Dictionary: %s..." % (response[:100]))
-            self.log.info("Response Reply: %s..." % (reply[:100]))
+            self.log.debug("Response Dictionary: %s..." % (response[:100]))
+            self.log.debug("Response Reply: %s..." % (reply[:100]))
 
         return self
 
@@ -343,7 +343,7 @@ class APIShim:
                     self.got_items[item.get('ItemID')] = item
                 else:
                     items_inactive += 1
-                    self.log.warning('Item %s is not active, ignoring it' % (item.get('ItemID')))
+                    self.log.debug('Item %s is not active, ignoring it' % (item.get('ItemID')))
                 
             msg = '%d Items Active and %d Items inactive'
             self.log.info(msg % (items_active, items_inactive))
