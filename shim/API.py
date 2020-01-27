@@ -235,7 +235,16 @@ class APIShim:
             }
         else:
             if self.pagination_total_pages > self.seller_filter_dict['Pagination']['PageNumber']:
+
+                pages_left = (self.pagination_total_pages -
+                              self.seller_filter_dict['Pagination']['PageNumber'])
+                self.log.info('%d Pages left' % (pages_left))
+
                 if self.pagination_total_items > self.pagination_received_items:
+
+                    items_left = self.pagination_total_items - self.pagination_received_items
+                    self.log.info('%d Items left to get' % (items_left))
+
                     self.seller_filter_dict['Pagination']['PageNumber'] += 1
                 else:
                     self.pagination_received_items = 0
