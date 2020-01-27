@@ -423,6 +423,8 @@ class APIShim:
                 self.__get_items().__print_response()
             elif command == 'get_seller_list':
                 self.__get_seller_list().__print_response()
+                while self.pagination_received_items < self.pagination_total_items:
+                    self.__get_seller_list().__print_response()
             else:
                 self.log.debug(err_msg)
                 raise NameError(err_msg)
