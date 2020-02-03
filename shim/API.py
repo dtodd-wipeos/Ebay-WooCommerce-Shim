@@ -107,27 +107,47 @@ class APIShim:
             ReturnAll (something that is not allowed on bulk
             queries such as GetSellerList and GetSellerEvents)
         """
-        self.cursor.execute("""
+
+        # INSERT OR REPLACE so that we can always ensure that the
+        # saved information is up to date (or at least recent)
+        query = """
             INSERT OR REPLACE INTO items (
                 itemid, active, available_quantity,
                 title, sku, start_date, end_date,
                 category_id, category_name, condition_name,
                 condition_description, description
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            int(item['ItemID']),
-            item['SellingStatus']['ListingStatus'],
-            int(item['Quantity']) - int(item['SellingStatus']['QuantitySold']),
-            item['Title'],
-            item['SKU'],
-            isodate.parse_datetime(item['ListingDetails']['StartTime']),
-            isodate.parse_datetime(item['ListingDetails']['EndTime']),
-            int(item['PrimaryCategory']['CategoryID']),
-            item['PrimaryCategory']['CategoryName'],
-            item['ConditionDisplayName'] if item.get('ConditionDisplayName', False) else '',
-            item['ConditionDescription'] if item.get('ConditionDescription', False) else '',
-            item['Description'] if item.get('Description', False) else '',
-        ))
+            ) VALUES (
+                :itemid, :active, :available_quantity,
+                :title, :sku, :start_date, :end_date,
+                :category_id, :category_name, :condition_name,
+                :condition_description, :description)
+        """
+
+        values = {
+            'itemid': int(item['ItemID']),
+            'active': item['SellingStatus']['ListingStatus'],
+            'available_quantity': int(item['Quantity']) - int(item['SellingStatus']['QuantitySold']),
+            'title': item['Title'],
+            'sku': item['SKU'],
+            'start_date': isodate.parse_datetime(item['ListingDetails']['StartTime']),
+            'end_date': isodate.parse_datetime(item['ListingDetails']['EndTime']),
+            'category_id': int(item['PrimaryCategory']['CategoryID']),
+            'category_name': item['PrimaryCategory']['CategoryName'],
+            'condition_name': '',
+            'condition_description': '',
+            'description': '',
+        }
+
+        # These fields have a chance to not exist, so we set default empty values
+        # and then try to add them after the dictionary is created
+        if item.get('ConditionDisplayName', False):
+            values['condition_name'] = item['ConditionDisplayName']
+        if item.get('ConditionDescription', False):
+            values['condition_description'] = item['ConditionDescription']
+        if item.get('Description', False):
+            values['description'] = item['Description']
+
+        self.cursor.execute(query, values)
 
         return self
 
