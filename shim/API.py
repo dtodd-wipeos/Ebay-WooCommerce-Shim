@@ -7,6 +7,8 @@ import logging
 
 import sqlite3
 
+import isodate
+
 from ebaysdk.trading import Connection as Trading
 from ebaysdk.exception import ConnectionError
 
@@ -47,8 +49,10 @@ class APIShim:
         log_handler.setFormatter(log_format)
         self.log.addHandler(log_handler)
 
+        # Used to convert datetime objects (and others in the future)
+        detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         # Store a local database of items as a cache. Autocommit is on
-        self.database = sqlite3.connect('ebay_items.db', isolation_level=None)
+        self.database = sqlite3.connect('ebay_items.db', isolation_level=None, detect_types=detect_types)
         with self.database:
             self.cursor = self.database.cursor()
         self.__create_tables()
@@ -67,12 +71,15 @@ class APIShim:
         """
         query = """
             CREATE TABLE IF NOT EXISTS items (
-                itemid INT PRIMARY KEY,
+                itemid INTEGER PRIMARY KEY,
                 active BOOLEAN,
-                total_quantity INT,
+                available_quantity INTEGER,
                 title TEXT,
-                category TEXT,
                 sku TEXT,
+                start_date TIMESTAMP,
+                end_date TIMESTAMP,
+                category_id INTEGER,
+                category_name TEXT,
                 condition_name TEXT,
                 condition_description TEXT,
                 description TEXT
@@ -81,15 +88,53 @@ class APIShim:
         self.cursor.execute(query)
         query = """
             CREATE TABLE IF NOT EXISTS item_metadata (
-                itemid INT PRIMARY KEY,
-                key Text,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                itemid INTEGER,
+                key TEXT,
                 value TEXT
             )
         """
         self.cursor.execute(query)
 
     def __store_item(self, item):
-        pass
+
+        query = """
+            INSERT OR REPLACE INTO items (
+                itemid, active, available_quantity,
+                title, sku, start_date, end_date,
+                category_id, category_name, condition_name,
+                condition_description, description
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        fields = (
+            int(item['ItemID']),
+            item['SellingStatus']['ListingStatus'],
+            int(item['Quantity']) - int(item['SellingStatus']['QuantitySold']),
+            item['Title'],
+            item['SKU'],
+            isodate.parse_datetime(item['ListingDetails']['StartTime']),
+            isodate.parse_datetime(item['ListingDetails']['EndTime']),
+            int(item['PrimaryCategory']['CategoryID']),
+            item['PrimaryCategory']['CategoryName'],
+            item['ConditionDisplayName'] if item.get('ConditionDisplayName', False) else '',
+            item['ConditionDescription'] if item.get('ConditionDescription', False) else '',
+            item['Description'] if item.get('Description', False) else '',
+        )
+        self.cursor.execute(query, fields)
+
+        query = """
+            INSERT INTO item_metadata (
+                itemid, key, value
+            ) values (?, ?, ?)
+        """
+        # Save each picture URL
+        for picture in item['PictureDetails']['PictureURL']:
+            # TODO: Check for duplicates
+            self.cursor.execute(query, (int(item['ItemID']), 'picture_url', picture,))
+
+        # Save any ItemSpecics - Apparently we have to request this seperately
+
+        return self
 
     def __get_api_connection(self):
         """
