@@ -6,3 +6,5 @@ Pipfile.lock
 *.log
 *.db
 *_item*.py
+items.py
+test.html
