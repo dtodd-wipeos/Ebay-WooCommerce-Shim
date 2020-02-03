@@ -97,7 +97,16 @@ class APIShim:
         self.cursor.execute(query)
 
     def __store_item(self, item):
+        """
+            Store the provided `item`, which is a dictionary,
+            into the local database. This gets all information
+            that is normally returned from GetSellerList.
 
+            For ItemSpecifics, we will have to make a seperate
+            API call to GetItem with the DetailLevel set to
+            ReturnAll (something that is not allowed on bulk
+            queries such as GetSellerList and GetSellerEvents)
+        """
         query = """
             INSERT OR REPLACE INTO items (
                 itemid, active, available_quantity,
@@ -129,8 +138,19 @@ class APIShim:
         """
         # Save each picture URL
         for picture in item['PictureDetails']['PictureURL']:
-            # TODO: Check for duplicates
-            self.cursor.execute(query, (int(item['ItemID']), 'picture_url', picture,))
+            # Only store the picture if it doesn't already exist
+            self.cursor.execute(
+                'SELECT * FROM item_metadata WHERE itemid = :item AND key = :key AND value = :val',
+                {
+                    'item': int(item['ItemID']),
+                    'key': 'picture_url', 
+                    'val': picture,
+                }
+            )
+            if len(self.cursor.fetchall()) == 0:
+                self.cursor.execute(query, (int(item['ItemID']), 'picture_url', picture,))
+            else:
+                self.log.debug("%d already has saved metadata for %s" % (int(item['ItemID']), picture))
 
         # Save any ItemSpecics - Apparently we have to request this seperately
 
