@@ -107,15 +107,14 @@ class APIShim:
             ReturnAll (something that is not allowed on bulk
             queries such as GetSellerList and GetSellerEvents)
         """
-        query = """
+        self.cursor.execute("""
             INSERT OR REPLACE INTO items (
                 itemid, active, available_quantity,
                 title, sku, start_date, end_date,
                 category_id, category_name, condition_name,
                 condition_description, description
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        fields = (
+        """, (
             int(item['ItemID']),
             item['SellingStatus']['ListingStatus'],
             int(item['Quantity']) - int(item['SellingStatus']['QuantitySold']),
@@ -128,31 +127,45 @@ class APIShim:
             item['ConditionDisplayName'] if item.get('ConditionDisplayName', False) else '',
             item['ConditionDescription'] if item.get('ConditionDescription', False) else '',
             item['Description'] if item.get('Description', False) else '',
-        )
-        self.cursor.execute(query, fields)
+        ))
 
+        return self
+
+    def __store_item_metadata(self, item):
+        """
+            Store the provided `item`, which is a dictionary,
+            into the local database. We're specifically after
+            meta data such as picture urls, and item specifics
+        """
         query = """
             INSERT INTO item_metadata (
                 itemid, key, value
             ) values (?, ?, ?)
         """
-        # Save each picture URL
-        for picture in item['PictureDetails']['PictureURL']:
-            # Only store the picture if it doesn't already exist
-            self.cursor.execute(
-                'SELECT * FROM item_metadata WHERE itemid = :item AND key = :key AND value = :val',
-                {
-                    'item': int(item['ItemID']),
-                    'key': 'picture_url', 
-                    'val': picture,
-                }
-            )
-            if len(self.cursor.fetchall()) == 0:
-                self.cursor.execute(query, (int(item['ItemID']), 'picture_url', picture,))
-            else:
-                self.log.debug("%d already has saved metadata for %s" % (int(item['ItemID']), picture))
+    
+        if item.get('PictureDetails', False):
+            # Save each picture URL
+            for picture in item['PictureDetails']['PictureURL']:
+                # Only store the picture if it doesn't already exist
+                self.cursor.execute(
+                    'SELECT * FROM item_metadata WHERE itemid = :item AND key = :key AND value = :val',
+                    {
+                        'item': int(item['ItemID']),
+                        'key': 'picture_url', 
+                        'val': picture,
+                    }
+                )
+                if len(self.cursor.fetchall()) == 0:
+                    self.cursor.execute(query, (int(item['ItemID']), 'picture_url', picture,))
+                else:
+                    self.log.debug("%d already has picture metadata" % (int(item['ItemID'])))
 
-        # Save any ItemSpecics - Apparently we have to request this seperately
+        # Save any ItemSpecics - Apparently we have to request this
+        # seperately if the `item` is provided via GetSellerList
+
+        if item.get('ItemSpecifics', False):
+            for detail in item['ItemSpecifics']['NameValueList']:
+                pass
 
         return self
 
@@ -435,7 +448,8 @@ class APIShim:
             for item in item_list:
                 if item['SellingStatus']['ListingStatus'] == 'Active':
                     items_active += 1
-                    # Store in-memory dictionary of items in case we need them while the class is active
+                    # Store in-memory dictionary of items in case
+                    # we need them while the class is active
                     self.got_items[item.get('ItemID')] = item
 
                     # Store the items in the database for use in syncing to wordpress
@@ -461,9 +475,6 @@ class APIShim:
 
             Sets `self.got_items`, which is a dictionary containing a
             dictionary for each item that was fetched
-
-            TODO: Finish this method (or remove it if we can get everything
-            from GetSellerList)
         """
         if self.got_item_ids:
             for item_id in self.got_item_ids:
