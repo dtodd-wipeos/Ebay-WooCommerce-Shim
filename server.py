@@ -23,9 +23,6 @@ if __name__ == '__main__':
     (opts, args) = parse_options()
 
     shim = APIShim()
-    shim.set_date_range(start_date='2020-01-01', days=1).set_range_filter()
+    shim.set_date_range(start_date='2020-01-01', days=10).set_range_filter()
 
     shim.try_command('get_seller_list')
-
-    outfile = open('items.py', 'w')
-    pprint(shim.got_items, outfile)
