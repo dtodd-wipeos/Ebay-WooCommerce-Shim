@@ -160,7 +160,7 @@ class APIShim:
         query = """
             INSERT INTO item_metadata (
                 itemid, key, value
-            ) values (?, ?, ?)
+            ) values (:itemid, :key, :value)
         """
     
         if item.get('PictureDetails', False):
@@ -176,7 +176,13 @@ class APIShim:
                     }
                 )
                 if len(self.cursor.fetchall()) == 0:
-                    self.cursor.execute(query, (int(item['ItemID']), 'picture_url', picture,))
+                    values = {
+                        'itemid': int(item['ItemID']),
+                        'key': 'picture_url',
+                        'value': picture,
+                    }
+
+                    self.cursor.execute(query, values)
                 else:
                     self.log.debug("%d already has picture metadata" % (int(item['ItemID'])))
 
