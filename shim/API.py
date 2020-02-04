@@ -25,21 +25,8 @@ class APIShim:
             have when it is created.
         """
 
-        # Contains the range of listings to search (defined at `set_date_range`)
-        self.date_range = {}
-        # Contains the filters that are applied to
-        # seller events searching (defined at `set_range_filter`)
-        self.seller_filter_dict = {}
-        # Contains all item ids that are currently active (defined at `get_item_ids`)
-        self.got_item_ids = []
-        # Contains all of the items that are currently active (defined at `get_seller_list`)
-        self.got_items = {}
-
-        # Used to determine how many times a paginated request
-        # needs to be repeated to get the full data set
-        self.pagination_total_items = 0
-        self.pagination_total_pages = 0
-        self.pagination_received_items = 0
+        # Setup connection to SDK
+        self.ebay = self.__get_api_connection()
 
         # Setup logging
         self.log = logging.getLogger(__name__)
@@ -49,16 +36,33 @@ class APIShim:
         log_handler.setFormatter(log_format)
         self.log.addHandler(log_handler)
 
+        # Setup database
         # Used to convert datetime objects (and others in the future)
         detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         # Store a local database of items as a cache. Autocommit is on
-        self.database = sqlite3.connect('ebay_items.db', isolation_level=None, detect_types=detect_types)
+        self.database = sqlite3.connect(
+            os.environ.get('ebay_database', 'ebay_items.db'),
+            isolation_level=None,
+            detect_types=detect_types)
+
         with self.database:
             self.cursor = self.database.cursor()
         self.__create_tables()
 
-        # Setup connection to SDK
-        self.ebay = self.__get_api_connection()
+        # Setup Internals
+        # Contains the range of listings to search (defined at `set_date_range`)
+        self.date_range = {}
+        # Contains the filters that are applied to
+        # seller events searching (defined at `set_range_filter`)
+        self.seller_filter_dict = {}
+        # Contains all item ids that are currently active (defined at `get_item_ids`)
+        self.got_item_ids = []
+
+        # Used to determine how many times a paginated request
+        # needs to be repeated to get the full data set
+        self.pagination_total_items = 0
+        self.pagination_total_pages = 0
+        self.pagination_received_items = 0
 
     def __create_tables(self):
         """
@@ -155,43 +159,67 @@ class APIShim:
         """
             Store the provided `item`, which is a dictionary,
             into the local database. We're specifically after
-            meta data such as picture urls, and item specifics
+            metadata such as picture urls, and item specifics.
+
+            When this is called from GetSellerList, the PictureDetails
+            are what are normally provided. When this is called from
+            GetItem, ItemSpecifics are what are normally provided
         """
-        query = """
+
+        has_metadata = "%d already has metadata for %s"
+
+        # Determine if we already have a record that matches exactly
+        query_for_existing = """
+            SELECT * FROM item_metadata
+            WHERE
+                itemid = :itemid AND
+                key = :key AND
+                value = :value
+        """
+
+        query_to_insert = """
             INSERT INTO item_metadata (
                 itemid, key, value
             ) values (:itemid, :key, :value)
         """
-    
+
+        # PictureDetails exists on GetSellerList and GetItem, so this should always get hit
         if item.get('PictureDetails', False):
-            # Save each picture URL
+            self.log.debug('Found Picture Details for %d' % (int(item['ItemID'])))
             for picture in item['PictureDetails']['PictureURL']:
-                # Only store the picture if it doesn't already exist
-                self.cursor.execute(
-                    'SELECT * FROM item_metadata WHERE itemid = :item AND key = :key AND value = :val',
-                    {
-                        'item': int(item['ItemID']),
-                        'key': 'picture_url', 
-                        'val': picture,
-                    }
+                values = {
+                    'itemid': int(item['ItemID']),
+                    'key': 'picture_url',
+                    'value': picture,
+                }
+
+                metadata_count = len(
+                    self.cursor.execute(query_for_existing, values).fetchall()
                 )
-                if len(self.cursor.fetchall()) == 0:
-                    values = {
-                        'itemid': int(item['ItemID']),
-                        'key': 'picture_url',
-                        'value': picture,
-                    }
 
-                    self.cursor.execute(query, values)
+                if metadata_count == 0:
+                    self.cursor.execute(query_to_insert, values)
                 else:
-                    self.log.debug("%d already has picture metadata" % (int(item['ItemID'])))
+                    self.log.debug(has_metadata % (int(item['ItemID']), picture))
 
-        # Save any ItemSpecics - Apparently we have to request this
-        # seperately if the `item` is provided via GetSellerList
-
+        # ItemSpecifics only exists on GetItem when `IncludeItemSpecifics` is True
         if item.get('ItemSpecifics', False):
+            self.log.debug('Found Specific Details for %d' % (int(item['ItemID'])))
             for detail in item['ItemSpecifics']['NameValueList']:
-                pass
+                values = {
+                    'itemid': int(item['ItemID']),
+                    'key': detail['Name'],
+                    'value': detail['Value'],
+                }
+
+                metadata_count = len(
+                    self.cursor.execute(query_for_existing, values).fetchall()
+                )
+
+                if metadata_count == 0:
+                    self.cursor.execute(query_to_insert, values)
+                else:
+                    self.log.debug(has_metadata % (int(item['ItemID']), detail['Name']))
 
         return self
 
@@ -388,51 +416,6 @@ class APIShim:
         
         return self
 
-    def __get_seller_events(self):
-        """
-            Gets a base description of all items that were found as part
-            of the date range seach. The only useful information in this
-            case is the "ItemID", "Title", and maybe the EndTime. 
-
-            As of now, this will create a list of only the active ItemIDs,
-            to be fetched by `self.__get_items()`
-        """
-        result = self.ebay.execute(
-            'GetSellerEvents',
-            self.seller_filter_dict
-        ).dict().get('ItemArray', None)
-
-        if result is not None:
-            items_found, items_active, items_inactive = 0, 0, 0
-
-            # Ensure that the response is a list containing one or more dictionaries
-            try:
-                for key in result['Item']:
-                    _ = key['ItemID']
-            except TypeError:
-                # Only one item was returned
-                result = [ result['Item'] ]
-            else:
-                result = result['Item']
-
-            for item in result:
-                items_found += 1
-
-                if item['SellingStatus']['ListingStatus'] == 'Active':
-                    items_active += 1
-                    self.got_item_ids.append(item.get('ItemID'))
-                else:
-
-                    items_inactive += 1
-                    self.log.warning('Item %s is not active, ignoring it' % (item.get('ItemID')))
-
-            msg = '%d Items Found, with %d Items Active and %d Items inactive'
-            self.log.info(msg % (items_found, items_active, items_inactive))
-        else:
-            self.log.error('Got no items from the search. Try adjusting the date range')
-
-        return self
-
     def __get_seller_list(self):
         """
             Gets multiple items from the same seller based on the date range
@@ -472,14 +455,14 @@ class APIShim:
                 item_list = item_list['Item']
 
             for item in item_list:
+                # Store the items in the database for use in syncing to wordpress
+                self.__store_item(item).__store_item_metadata(item)
+
                 if item['SellingStatus']['ListingStatus'] == 'Active':
                     items_active += 1
-                    # Store in-memory dictionary of items in case
-                    # we need them while the class is active
-                    self.got_items[item.get('ItemID')] = item
-
-                    # Store the items in the database for use in syncing to wordpress
-                    self.__store_item(item)
+                    # Store active item ids so that we can fetch ItemSpecifics
+                    self.got_item_ids.append(item['ItemID'])
+                    self.__get_items()
                 else:
                     items_inactive += 1
                     self.log.debug('Item %s is not active, ignoring it' % (item.get('ItemID')))
@@ -493,14 +476,13 @@ class APIShim:
 
     def __get_items(self):
         """
-            If there are item ids, this method will iterate over them
-            and send an API request for each item that is active (required
-            in order to get details such as description, etc). Upon getting
-            an item back, its condition code is looked up and set to the
-            human readable version.
+            Iterates over all of the active items (`self.got_item_ids`)
+            and makes an API request to get the ItemSpecifics (details
+            such as the specs of the device, etc). These requests are
+            then stored in the item_metadata table.
 
-            Sets `self.got_items`, which is a dictionary containing a
-            dictionary for each item that was fetched
+            TODO: Throttle this so we don't hit our daily limit of 5k
+            API calls
         """
         if self.got_item_ids:
             for item_id in self.got_item_ids:
@@ -517,19 +499,7 @@ class APIShim:
                     }
                 ).dict()
 
-                result['Item']['quantity_available'] = (
-                    # Total Quantity
-                    float(result['Item']['Quantity']) -
-                    # Quantity Sold
-                    float(result['Item']['SellingStatus']['QuantitySold'])
-                )
-
-                self.log.debug(result['Item'])
-
-                # Only grab one item for now
-                raise Exception('')
-
-                # self.got_items[item_id] = result
+                self.__store_item_metadata(result)
 
         return self
 
@@ -544,9 +514,7 @@ class APIShim:
             `command` is a string that is inside `__available_commands`
         """
         __available_commands = [
-            'get_item_ids',
             'get_seller_list',
-            'get_items'
         ]
 
         err_msg = "Command %s is unrecognized. Supported commands are: %s" % (
@@ -557,15 +525,7 @@ class APIShim:
             raise NameError(err_msg)
 
         try:
-            if command == 'get_item_ids':
-                self.__get_seller_events().__print_response()
-
-            elif command == 'get_items':
-                if not self.got_item_ids:
-                    self.try_command('get_item_ids')
-                self.__get_items().__print_response()
-
-            elif command == 'get_seller_list':
+            if command == 'get_seller_list':
                 # We need to run this at least once to populate
                 # `self.pagination_total_items` and `self.pagination_received_items`
                 self.__get_seller_list().__print_response()

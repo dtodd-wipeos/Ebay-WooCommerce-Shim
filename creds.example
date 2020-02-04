@@ -5,3 +5,4 @@ export ebay_appid=
 export ebay_certid=
 export ebay_devid=
 export ebay_token=
+export log_level=INFO
