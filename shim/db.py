@@ -8,6 +8,10 @@ import logging
 import isodate
 
 class Database:
+    """
+        Provides common methods for interacting with the local
+        database for both ebay (inserting) and WooCommerce (reading)
+    """
 
     def __init__(self):
         # Setup logging
