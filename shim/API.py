@@ -462,7 +462,6 @@ class APIShim:
                     items_active += 1
                     # Store active item ids so that we can fetch ItemSpecifics
                     self.got_item_ids.append(item['ItemID'])
-                    self.__get_items()
                 else:
                     items_inactive += 1
                     self.log.debug(
@@ -473,6 +472,9 @@ class APIShim:
             self.log.info(msg % (items_active, items_inactive))
         else:
             self.log.error('Got no items from the search. Try adjusting the date range')
+
+        if len(self.got_item_ids) > 0:
+            self.__get_items()
 
         return self
 
