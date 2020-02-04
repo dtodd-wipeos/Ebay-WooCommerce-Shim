@@ -1,8 +1,18 @@
 #!/bin/bash
 
+# General variables
+export database_file=ebay_items.db
+export log_level=INFO
+export log_file=
+
+# Ebay credentials
 export ebay_domain=api.sandbox.ebay.com
 export ebay_appid=
 export ebay_certid=
 export ebay_devid=
 export ebay_token=
-export log_level=INFO
+
+# WooCommerce credentials
+export woo_url=
+export woo_key=
+export woo_secret=

@@ -27,7 +27,7 @@ class Database:
         detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         # Store a local database of items as a cache. Autocommit is on
         self.database = sqlite3.connect(
-            os.environ.get('ebay_database', 'ebay_items.db'),
+            os.environ.get('database_file', 'ebay_items.db'),
             isolation_level=None,
             detect_types=detect_types)
 

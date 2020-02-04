@@ -20,6 +20,10 @@ class WooCommerceShim(Database):
     def __init__(self, *args, **kwargs):
         super(WooCommerceShim, self).__init__(*args, **kwargs)
 
-
+        self.api = API(
+            url=os.environ.get('woo_url', False),
+            consumer_key=os.environ.get('woo_key', False),
+            consumer_secret=os.environ.get('woo_secret', False)
+        )
 
 
