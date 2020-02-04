@@ -25,9 +25,6 @@ class APIShim:
             have when it is created.
         """
 
-        # Setup connection to SDK
-        self.ebay = self.__get_api_connection()
-
         # Setup logging
         self.log = logging.getLogger(__name__)
         self.log.setLevel(os.environ.get('log_level', 'INFO'))
@@ -63,6 +60,9 @@ class APIShim:
         self.pagination_total_items = 0
         self.pagination_total_pages = 0
         self.pagination_received_items = 0
+
+        # Setup connection to SDK
+        self.ebay = self.__get_api_connection()
 
     def __create_tables(self):
         """
@@ -465,8 +465,10 @@ class APIShim:
                     self.__get_items()
                 else:
                     items_inactive += 1
-                    self.log.debug('Item %s is not active, ignoring it' % (item.get('ItemID')))
-                
+                    self.log.debug(
+                        'Item %s is not active, not getting its metadata' % (item.get('ItemID'))
+                    )
+
             msg = '%d Items Active and %d Items inactive'
             self.log.info(msg % (items_active, items_inactive))
         else:
