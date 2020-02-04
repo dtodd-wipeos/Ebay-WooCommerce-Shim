@@ -2,7 +2,7 @@
 
 from pprint import pprint
 from optparse import OptionParser
-from shim.API import APIShim
+from shim.ebay import EbayShim
 
 def parse_options():
     parser = OptionParser(usage="Usage: %prog [options]")
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     # Currently unused
     (opts, args) = parse_options()
 
-    shim = APIShim()
-    shim.set_date_range(start_date='2020-01-01', days=10).set_range_filter()
+    shim = EbayShim()
+    shim.set_date_range(start_date='2020-02-01', days=1).set_range_filter()
 
     shim.try_command('get_seller_list')

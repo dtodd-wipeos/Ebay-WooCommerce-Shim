@@ -236,7 +236,7 @@ class EbayShim(Database):
                     }
                 ).dict()['Item']
 
-                self.store_item_metadata(result)
+                self.store_item_metadata_from_ebay(result)
 
         return self
 
@@ -280,7 +280,7 @@ class EbayShim(Database):
 
             for item in item_list:
                 # Store the items in the database for use in syncing to wordpress
-                self.store_item(item).store_item_metadata(item)
+                self.store_item_from_ebay(item).store_item_metadata_from_ebay(item)
 
                 if item['SellingStatus']['ListingStatus'] == 'Active':
                     items_active += 1

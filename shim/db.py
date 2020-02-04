@@ -13,7 +13,7 @@ class Database:
         database for both ebay (inserting) and WooCommerce (reading)
     """
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         # Setup logging
         self.log = logging.getLogger(__name__)
         self.log.setLevel(os.environ.get('log_level', 'INFO'))
@@ -69,7 +69,7 @@ class Database:
             );
         """)
 
-    def store_item(self, item):
+    def store_item_from_ebay(self, item):
         """
             Store the provided `item`, which is a dictionary,
             into the local database. This gets all information
@@ -124,7 +124,7 @@ class Database:
 
         return self
 
-    def store_item_metadata(self, item):
+    def store_item_metadata_from_ebay(self, item):
         """
             Store the provided `item`, which is a dictionary,
             into the local database. We're specifically after
