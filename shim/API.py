@@ -17,6 +17,8 @@ class APIShim:
         Contains various methods for querying the ebay API
         that will get items that are currently active,
         categories, descriptions, etc
+
+        TODO: Multi-threading.
     """
 
     def __init__(self):
