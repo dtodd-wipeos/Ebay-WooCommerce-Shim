@@ -206,6 +206,9 @@ class APIShim:
         if item.get('ItemSpecifics', False):
             self.log.debug('Found Specific Details for %d' % (int(item['ItemID'])))
             for detail in item['ItemSpecifics']['NameValueList']:
+                if type(detail['Value']) is list:
+                    detail['Value'] = ', '.join(detail['Value'])
+
                 values = {
                     'itemid': int(item['ItemID']),
                     'key': detail['Name'],
@@ -501,7 +504,7 @@ class APIShim:
                         'DetailLevel': 'ItemReturnDescription',
                         'ItemID': item_id,
                     }
-                ).dict()
+                ).dict()['Item']
 
                 self.__store_item_metadata(result)
 
