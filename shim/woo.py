@@ -5,7 +5,9 @@ import sys
 
 from .db import Database
 
-class WooCommerce(Database):
+from woocommerce import API
+
+class WooCommerceShim(Database):
     """
         Contains various methods for interacting with
         the WooCommerce API. These methods will do things
@@ -16,6 +18,8 @@ class WooCommerce(Database):
     """
 
     def __init__(self, *args, **kwargs):
-        super(WooCommerce, self).__init__(*args, **kwargs)
+        super(WooCommerceShim, self).__init__(*args, **kwargs)
+
+
 
 
