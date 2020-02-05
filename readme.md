@@ -53,7 +53,9 @@ WooCommerce uses several methods for authenticating API requests. In this scope,
 
 ### Production
 
+# TODO:
+
 1. Ensure that you have [Docker](https://www.docker.com/) installed, and that your user is in the `docker` group
-1. Copy the `creds.example` file to `creds.production` and fill out the access keys
+1. Copy the `creds.env.example` file to `creds.production` and fill out the access keys
 1. Build the docker container with `docker build --tag alpine-ebay-woo-shim:latest .`
-1. Start the server with `docker run --mount type=bind,source="$(pwd),target=/opt" alpine-ebay-woo-shim:latest`
+1. Start the server with `docker run --env-file creds.production --mount type=bind,source="$(pwd),target=/opt" alpine-ebay-woo-shim:latest`
