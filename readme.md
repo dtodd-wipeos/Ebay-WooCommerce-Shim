@@ -1,6 +1,6 @@
 # Ebay -> WooCommerce Shim
 
-This project's goal is to export active product listings from ebay, and import them into WooCommerce.
+This project's goal is to export active product listings from ebay into a local database, and import them into WooCommerce.
 
 It will run as an isolated micro service, in a minimal, [Apline](https://alpinelinux.org/) based Docker container. At scheduled times,
 it will update its database with ebay events (sold status, and new product listings), which will determine
@@ -33,7 +33,7 @@ The user token should be just as restricted as the access keys, since the token 
 
 #### WooCommerce
 
-WooCommerce uses several methods for authenticating API requests. In this scope, we will only be using Wordpress' built in REST API.
+WooCommerce uses several methods for authenticating API requests. In the scope of this project, we will only be using Wordpress' built in REST API.
 
 1. Login to the wp-admin section of your web store as an administrative user
 1. Use the sidebar to navigate to WooCommerce -> Settings -> Advanced -> REST API
@@ -53,9 +53,7 @@ WooCommerce uses several methods for authenticating API requests. In this scope,
 
 ### Production
 
-# TODO:
-
-1. Ensure that you have [Docker](https://www.docker.com/) installed, and that your user is in the `docker` group
-1. Copy the `creds.env.example` file to `creds.production` and fill out the access keys
-1. Build the docker container with `docker build --tag alpine-ebay-woo-shim:latest .`
-1. Start the server with `docker run --env-file creds.production --mount type=bind,source="$(pwd),target=/opt" alpine-ebay-woo-shim:latest`
+1. Ensure that you have [Docker](https://www.docker.com) installed, and that your user is in the `docker` group
+1. Copy the `creds.example` file to `creds.production` and fill out the access keys
+1. Build and start the docker container with `./build.sh`
+    * Subsequent launches can be accomplished with `./run.sh`, which won't spend the time to build
