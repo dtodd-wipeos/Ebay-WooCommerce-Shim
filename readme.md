@@ -49,7 +49,7 @@ WooCommerce uses several methods for authenticating API requests. In the scope o
 1. Install the necessary dependencies, this will also create a virtualenv to work from - `$ pipenv install`
 1. Enter the virtualenv - `$ pipenv shell`
 1. Copy the `creds.example` file to `creds.sandbox` and fill out the access keys
-1. Start the server with `./bin/run.sh`
+1. Start the server with `./bin/run-local.sh`
 
 ### Production
 
