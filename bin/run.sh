@@ -1,4 +1,4 @@
 #!/bin/bash
 
-source creds.production
+source ../creds.production
 python server.py
