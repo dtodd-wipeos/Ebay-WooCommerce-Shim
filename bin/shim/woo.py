@@ -25,5 +25,3 @@ class WooCommerceShim(Database):
             consumer_key=os.environ.get('woo_key', False),
             consumer_secret=os.environ.get('woo_secret', False)
         )
-
-
