@@ -3,5 +3,5 @@
 # Copyright 2020 David Todd <dtodd@oceantech.com>
 # License: Properitary
 
-source creds.production
-python server.py
+echo "Running your application"
+docker run --volume $(pwd)/credentials:/opt/credentials alpine-ebay-woo-shim:latest

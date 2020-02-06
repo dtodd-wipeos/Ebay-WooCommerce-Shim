@@ -1,19 +1,52 @@
-# The very latest (possibly unstable) version of Alpine Linux
-FROM alpine:edge
+# Part of Ebay-WooCommerce-Shim
+# Copyright 2020 David Todd <dtodd@oceantech.com>
+# License: Properitary
 
-# Install python3 and pipenv
-RUN apk add --no-cache python3 \
-    && pip3 install pipenv
+# This is a multi-stage docker file, each stage is a different section wrapped in comments
+# https://docs.docker.com/develop/develop-images/multistage-build/
 
-# Add the server, and shim library to a dir that is expected to be empty
-ADD bin /opt
+# Install the minimum required dependencies
+FROM alpine:edge AS install_base_depends
+RUN apk add --no-cache bash python3 libxslt
+# End install minimum dependencies
 
-# All commands that follow this point will run as though we first did `cd /opt`
+# Create build dependencies stage
+FROM install_base_depends AS install_build_depends
+# These dependencies are used to compile pylibxml and multidict (there are no binaries available apparently)
+RUN apk add --no-cache python3-dev build-base musl-dev libffi-dev libxml2-dev libxslt-dev
+# End build dependencies
+
+# Install upgrade pip to latest version
+FROM install_build_depends AS upgrade_pip
+# Pip keeps complaining about the version that ships with python3, so update it
+RUN pip3 install --no-cache-dir --upgrade pip
+# End upgrade pip
+
+# Install pipenv
+FROM upgrade_pip AS install_pipenv
+RUN pip3 install --no-cache-dir pipenv
+# End install pipenv
+
+# Install and build any python wheels (binaries)
+FROM install_pipenv AS install_depends
+COPY Pipfile* /opt/
+# From this point on, all future commands are ran from /opt
 WORKDIR /opt
+RUN set -ex && pipenv install --deploy --system --clear
+# End install and build python wheels
 
-# Install dependencies, but only during `docker build`
-COPY Pipfile Pipfile
-RUN set -ex && pipenv install --deploy --system
+# Remove build artifacts (source, toolchains, etc)
+FROM install_depends AS remove_build_depends
+RUN apk del python3-dev build-base musl-dev libffi-dev libxml2-dev libxslt-dev
+# End remove build artifacts
 
-# Start the server
-ENTRYPOINT ["/opt/run-docker.sh"]
+# Build the application
+FROM remove_build_depends AS build_app
+ADD ./bin /opt
+# End build application
+
+# Run the app
+FROM build_app AS run_app
+ENTRYPOINT ["bash"]
+CMD ["./run.sh production"]
+# End run the app

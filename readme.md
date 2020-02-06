@@ -15,7 +15,7 @@ a ton of time regenerating docker containers.
 
 This project interfaces with both the Ebay API, and the WooCommerce API; both of which require the use of access keys.
 
-The keys are stored in `creds.sandbox` and `creds.production`, which are bash files that are `source`d before running the server (or passed via environment variables to docker). There is a `creds.example` file that demonstrates the various environment variables that are used.
+The keys are stored in `credentials/creds.sandbox` and `credentials/creds.production`, which are bash files that are `source`d before running the server (or passed via environment variables to docker). There is a `credentials/creds.example` file that demonstrates the various environment variables that are used.
 
 #### Ebay
 
@@ -48,12 +48,16 @@ WooCommerce uses several methods for authenticating API requests. In the scope o
 1. Ensure that you have [Pipenv](https://github.com/pypa/pipenv) installed, in addition to Python 3.8
 1. Install the necessary dependencies, this will also create a virtualenv to work from - `$ pipenv install`
 1. Enter the virtualenv - `$ pipenv shell`
-1. Copy the `creds.example` file to `creds.sandbox` and fill out the access keys
-1. Start the server with `./bin/run-local.sh`
+1. Copy the `credentials/creds.example` file to `credentials/creds.sandbox` and fill out the access keys
+    * To use production credentials: Copy the `credentials/creds.example` file to `credentials/creds.production` and fill out the access keys
+5. Start the server with `./run.sh sandbox`
+    * To use production credentials instead: `./run.sh production`
 
 ### Production
 
 1. Ensure that you have [Docker](https://www.docker.com) installed, and that your user is in the `docker` group
-1. Copy the `creds.example` file to `creds.production` and fill out the access keys
-1. Build and start the docker container with `./build.sh`
-    * Subsequent launches can be accomplished with `./run.sh`, which won't spend the time to build
+1. Copy the `credentials/creds.example` file to `credentials/creds.production` and fill out the access keys
+1. Build and start the docker container with `./build-container.sh`
+    * Subsequent launches can be accomplished with `./run-container.sh`, which won't spend the time to build
+
+The container is hardcoded to use the production credentials. Alter `CMD` line of the Dockerfile to change that to `sandbox` if you wish and rebuild.
