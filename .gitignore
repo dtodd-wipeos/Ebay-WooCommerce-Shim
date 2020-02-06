@@ -2,5 +2,4 @@ creds.production
 creds.sandbox
 __pycache__
 .vscode
-Pipfile.lock
 test_data
