@@ -52,6 +52,7 @@ WooCommerce uses several methods for authenticating API requests. In the scope o
     * To use production credentials: Copy the `credentials/creds.example` file to `credentials/creds.production` and fill out the access keys
 5. Start the server with `./run.sh sandbox`
     * To use production credentials instead: `./run.sh production`
+    * If no arguments are supplied to `run.sh`, it will default to `production`
 
 ### Production
 
