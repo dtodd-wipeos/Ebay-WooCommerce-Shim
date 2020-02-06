@@ -4,4 +4,7 @@
 # License: Properitary
 
 echo "Running your application"
-docker run --volume $(pwd)/credentials:/opt/credentials alpine-ebay-woo-shim:latest
+docker run \
+       --volume $(pwd)/credentials:/opt/credentials \
+       --volume $(pwd)/database:/opt/database \
+       alpine-ebay-woo-shim:latest

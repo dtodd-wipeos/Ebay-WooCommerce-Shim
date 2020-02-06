@@ -69,4 +69,7 @@ echo "Building container with scripts from bin"
 docker build --target ${BUILD_TARGET} --tag ${IMGNAME} .
 
 echo "Running your application"
-docker run --volume $(pwd)/credentials:/opt/credentials ${IMGNAME}:latest
+docker run \
+      --volume $(pwd)/credentials:/opt/credentials \
+      --volume $(pwd)/database:/opt/database \
+      ${IMGNAME}:latest
