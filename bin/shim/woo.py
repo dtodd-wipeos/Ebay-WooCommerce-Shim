@@ -5,6 +5,7 @@
 
 import os
 import sys
+import logging
 
 from .db import Database
 
@@ -23,6 +24,14 @@ class WooCommerceShim(Database):
 
     def __init__(self, *args, **kwargs):
         super(WooCommerceShim, self).__init__(*args, **kwargs)
+
+        # Setup logging
+        self.log = logging.getLogger(__name__)
+        self.log.setLevel(os.environ.get('log_level', 'INFO'))
+        log_handler = logging.StreamHandler(sys.stdout)
+        log_format = logging.Formatter('%(asctime)s - %(name)s.%(funcName)s - %(levelname)s - %(message)s')
+        log_handler.setFormatter(log_format)
+        self.log.addHandler(log_handler)
 
         self.api = WCAPI(
             url=os.environ.get('woo_url', False),
@@ -55,6 +64,9 @@ class WooCommerceShim(Database):
             `data` - This is a bytes-like object representing the entire image. We get this
             from dowloading an image directly from Ebay's servers and temporarily storing it
             in memory
+
+            `post_id` is the post in which to attach the image to. This is returned in the
+            response from `self.create_product()`
         """
 
         endpoint = '/media?post=%d' % (post_id)
@@ -62,7 +74,7 @@ class WooCommerceShim(Database):
         headers = {
             'cache-control': 'no-cache',
             'content-disposition': 'attachment; filename=%s' % (image.get('name', '')),
-            'content-type': 'image/%s' % (image.get('type', ''))
+            'content-type': '%s' % (image.get('type', ''))
         }
 
         return self.wp_api.post(endpoint, image.get('data'), headers=headers)

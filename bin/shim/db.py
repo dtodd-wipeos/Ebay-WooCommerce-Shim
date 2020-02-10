@@ -202,13 +202,18 @@ class Database:
         """
             Gets all product image URLs that are
             associated with a particular `item_id`
+
+            Returns a list containing one or more
+            URLs to download images from, sorted
+            alphabetically
         """
 
         query = """
-            SELECT * FROM item_metadata
+            SELECT value FROM item_metadata
             WHERE
                 itemid = :item_id AND
-                key = 'picture_url';
+                key = 'picture_url'
+            ORDER BY value;
         """
 
         values = {

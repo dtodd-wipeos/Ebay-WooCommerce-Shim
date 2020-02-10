@@ -3,13 +3,18 @@
 # Copyright 2020 David Todd <dtodd@oceantech.com>
 # License: Properitary
 
+# Standard Library modules
 import os
-import shutil
+import sys
+import time
+import logging
 import requests
 import datetime
 
+# Local modules
 from .db import Database
 
+# External modules
 from ebaysdk.trading import Connection as Trading
 from ebaysdk.exception import ConnectionError
 
@@ -30,6 +35,14 @@ class EbayShim(Database):
 
         # Initalize the database and logging
         super(EbayShim, self).__init__(*args, **kwargs)
+
+        # Setup logging
+        self.log = logging.getLogger(__name__)
+        self.log.setLevel(os.environ.get('log_level', 'INFO'))
+        log_handler = logging.StreamHandler(sys.stdout)
+        log_format = logging.Formatter('%(asctime)s - %(name)s.%(funcName)s - %(levelname)s - %(message)s')
+        log_handler.setFormatter(log_format)
+        self.log.addHandler(log_handler)
 
         # Setup Internals
         # Contains the range of listings to search (defined at `set_date_range`)
@@ -307,9 +320,9 @@ class EbayShim(Database):
 
         return self
 
-    def download_product_images(self, product_id):
+    def download_product_images(self, item_id):
         """
-            Downloads all of the images for a provided `product_id` and 
+            Downloads all of the images for a provided `item_id` and 
             returns a dictionary containing the image name, mime type, and
             bytes-like object for the raw images
 
@@ -317,11 +330,47 @@ class EbayShim(Database):
             which is populated when `self.__get_item_metadata()` runs
         """
 
-        for image in self.db_get_product_image_urls(product_id):
-            pass
+        images = {}
+        count = 0
 
+        image_urls = self.db_get_product_image_urls(item_id)
+        image_urls_count = len(image_urls)
 
-        pass
+        if image_urls_count > 0:
+            self.log.debug("Found %d image URLs for: %s" % (image_urls_count, item_id))
+
+            for image in image_urls:
+                url = image[0]
+
+                self.log.debug("Downloading %s" % (url))
+                req = requests.get(url)
+
+                if req.content:
+                    mime_type = req.headers.get('Content-Type', '')
+                    extension = mime_type.split('/')[1]
+                    filename = '%s-%d.%s' % (item_id, count, extension)
+
+                    images[filename] = {
+                        'name': filename,
+                        'type': mime_type,
+                        'data': req.content,
+                    }
+
+                    self.log.info("Image %s downloaded" % (filename))
+
+                    if count < image_urls_count:
+                        self.log.info("Waiting 5 seconds until next download")
+                        time.sleep(5)
+                else:
+                    self.log.error(
+                        "No content returned. Is %s reachable in a browser?" % (url)
+                    )
+
+                count += 1
+        else:
+            self.log.warning("No Image URLs found for item: %s" % (item_id))
+
+        return images
 
     def __print_response(self, full=False):
         if self.ebay.warnings():
