@@ -11,6 +11,7 @@ ebaysdk = "*"
 quart = "*"
 isodate = "*"
 woocommerce = "*"
+wordpress-api = "*"
 
 [requires]
 python_version = "3.8"
