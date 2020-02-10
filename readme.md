@@ -43,6 +43,25 @@ WooCommerce uses several methods for authenticating API requests. In the scope o
 1. Description is a human readable identifier for the purpose of that API key
 1. Click "Generate API key", and on the next screen copy the key and secret somewhere safe. They won't be shown again.
 
+#### Wordpress
+
+Unfortunately we can't use the WooCommerce API key and secret to authenticate with
+the rest of the wordpress API, thus we can't upload images.
+
+To get around this issue, we will communicate with the Wordpress API directly. We
+will be using the wordpress plugins [JSON Basic Authentication](https://github.com/WP-API/Basic-Auth) and [Application Passwords](https://wordpress.org/plugins/application-passwords/).
+
+1. Install and activate the above plugins. `JSON Basic Authentication` has to be downloaded in zip form from the linked github.
+1. Create a user that (at the minimum) can create/edit posts.
+1. Login as that user and use the sidebar to get to Users -> Your Profile
+1. Scroll down to the section called "Application Passwords"
+1. Give the password a good descriptive name (used so that you can easily identify the purpose, not authentication) and click "Add New"
+1. Copy the password that you are given, including the spaces between the segments
+1. Now you can use that password in combination with the username of the user for API requests
+    * Note: This will **NOT** allow you to login to the UI with that password. It only authenticates API calls
+
+The fields to set in the `creds.example` file are `wordpress_user` and `wordpress_app_password`. The wordpress blog is assumed to be at the same URL as the WooCommerce store.
+
 ### Development
 
 1. Ensure that you have [Pipenv](https://github.com/pypa/pipenv) installed, in addition to Python 3.8
