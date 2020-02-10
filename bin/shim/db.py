@@ -29,13 +29,13 @@ class Database:
         # Used to convert datetime objects (and others in the future)
         detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         # Store a local database of items as a cache. Autocommit is on
-        self.database = sqlite3.connect(
+        self.__database = sqlite3.connect(
             os.environ.get('database_file', 'database/ebay_items.db'),
             isolation_level=None,
             detect_types=detect_types)
 
-        with self.database:
-            self.cursor = self.database.cursor()
+        with self.__database:
+            self.__cursor = self.__database.cursor()
         self.__create_tables()
 
     def __create_tables(self):
@@ -48,7 +48,7 @@ class Database:
             of ItemSpecifics, which is fluid and will generally contain specs
         """
 
-        self.cursor.executescript("""
+        self.__cursor.executescript("""
             CREATE TABLE IF NOT EXISTS items (
                 itemid INTEGER PRIMARY KEY,
                 active BOOLEAN,
@@ -72,7 +72,7 @@ class Database:
             );
         """)
 
-    def store_item_from_ebay(self, item):
+    def db_store_item_from_ebay(self, item):
         """
             Store the provided `item`, which is a dictionary,
             into the local database. This gets all information
@@ -123,11 +123,11 @@ class Database:
         if item.get('Description', False):
             values['description'] = item['Description']
 
-        self.cursor.execute(query, values)
+        self.__cursor.execute(query, values)
 
         return self
 
-    def store_item_metadata_from_ebay(self, item):
+    def db_store_item_metadata_from_ebay(self, item):
         """
             Store the provided `item`, which is a dictionary,
             into the local database. We're specifically after
@@ -166,11 +166,11 @@ class Database:
                 }
 
                 metadata_count = len(
-                    self.cursor.execute(query_for_existing, values).fetchall()
+                    self.__cursor.execute(query_for_existing, values).fetchall()
                 )
 
                 if metadata_count == 0:
-                    self.cursor.execute(query_to_insert, values)
+                    self.__cursor.execute(query_to_insert, values)
                 else:
                     self.log.debug(has_metadata % (int(item['ItemID']), picture))
 
@@ -188,12 +188,32 @@ class Database:
                 }
 
                 metadata_count = len(
-                    self.cursor.execute(query_for_existing, values).fetchall()
+                    self.__cursor.execute(query_for_existing, values).fetchall()
                 )
 
                 if metadata_count == 0:
-                    self.cursor.execute(query_to_insert, values)
+                    self.__cursor.execute(query_to_insert, values)
                 else:
                     self.log.debug(has_metadata % (int(item['ItemID']), detail['Name']))
 
         return self
+
+    def db_get_product_image_urls(self, product_id):
+        """
+            Gets all product image URLs that are
+            associated with a particular `product_id`
+        """
+
+        query = """
+            SELECT * FROM image_metadata
+            WHERE
+                product_id = :product_id AND
+                key = 'picture_url';
+        """
+
+        values = {
+            'product_id': product_id,
+        }
+
+        self.__cursor.execute(query, values)
+        return self.__cursor.fetchall()
