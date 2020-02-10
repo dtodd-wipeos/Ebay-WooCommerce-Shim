@@ -8,7 +8,8 @@ import sys
 
 from .db import Database
 
-from woocommerce import API
+from woocommerce import API as WCAPI
+from wordpress import API as WPAPI
 
 class WooCommerceShim(Database):
     """
@@ -23,8 +24,45 @@ class WooCommerceShim(Database):
     def __init__(self, *args, **kwargs):
         super(WooCommerceShim, self).__init__(*args, **kwargs)
 
-        self.api = API(
+        self.api = WCAPI(
             url=os.environ.get('woo_url', False),
             consumer_key=os.environ.get('woo_key', False),
             consumer_secret=os.environ.get('woo_secret', False)
         )
+
+        self.wp_api = WPAPI(
+            url=os.environ.get('woo_url', False),
+            api='wp-json',
+            version='wp/v2',
+            wp_user=os.environ.get('wordpress_user', False),
+            wp_pass=os.environ.get('wordpress_app_password', False),
+            basic_auth=True,
+            user_auth=True,
+            consumer_key=False,
+            consumer_secret=False
+        )
+
+    def upload_image(self, image, post_id):
+        """
+            Uploads the provided `image` to wordpress, and returns the response
+
+            `image` is a dictionary containing the following keys:
+
+            `name` - This is the destination file name, including extension
+
+            `type` - This is the MIMETYPE of the image, usually derived from the extension
+
+            `data` - This is a bytes-like object representing the entire image. We get this
+            from dowloading an image directly from Ebay's servers and temporarily storing it
+            in memory
+        """
+
+        endpoint = '/media?post=%d' % (post_id)
+
+        headers = {
+            'cache-control': 'no-cache',
+            'content-disposition': 'attachment; filename=%s' % (image.get('name', '')),
+            'content-type': 'image/%s' % (image.get('type', ''))
+        }
+
+        return self.wp_api.post(endpoint, image.get('data'), headers=headers)
