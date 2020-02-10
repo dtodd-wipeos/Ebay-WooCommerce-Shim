@@ -198,21 +198,21 @@ class Database:
 
         return self
 
-    def db_get_product_image_urls(self, product_id):
+    def db_get_product_image_urls(self, item_id):
         """
             Gets all product image URLs that are
-            associated with a particular `product_id`
+            associated with a particular `item_id`
         """
 
         query = """
-            SELECT * FROM image_metadata
+            SELECT * FROM item_metadata
             WHERE
-                product_id = :product_id AND
+                itemid = :item_id AND
                 key = 'picture_url';
         """
 
         values = {
-            'product_id': product_id,
+            'item_id': str(item_id),
         }
 
         self.__cursor.execute(query, values)
