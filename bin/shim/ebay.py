@@ -4,6 +4,8 @@
 # License: Properitary
 
 import os
+import shutil
+import requests
 import datetime
 
 from .db import Database
@@ -239,7 +241,7 @@ class EbayShim(Database):
                     }
                 ).dict()['Item']
 
-                self.store_item_metadata_from_ebay(result)
+                self.db_store_item_metadata_from_ebay(result)
 
         return self
 
@@ -283,7 +285,7 @@ class EbayShim(Database):
 
             for item in item_list:
                 # Store the items in the database for use in syncing to wordpress
-                self.store_item_from_ebay(item).store_item_metadata_from_ebay(item)
+                self.db_store_item_from_ebay(item).db_store_item_metadata_from_ebay(item)
 
                 if item['SellingStatus']['ListingStatus'] == 'Active':
                     items_active += 1
@@ -304,6 +306,22 @@ class EbayShim(Database):
             self.__get_item_metadata()
 
         return self
+
+    def download_product_images(self, product_id):
+        """
+            Downloads all of the images for a provided `product_id` and 
+            returns a dictionary containing the image name, mime type, and
+            bytes-like object for the raw images
+
+            The image URLs come from the database table `item_metadata`,
+            which is populated when `self.__get_item_metadata()` runs
+        """
+
+        for image in self.db_get_product_image_urls(product_id):
+            pass
+
+
+        pass
 
     def __print_response(self, full=False):
         if self.ebay.warnings():
