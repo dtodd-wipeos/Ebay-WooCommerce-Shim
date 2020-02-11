@@ -28,10 +28,9 @@ class Database:
         # Setup database
         # Used to convert datetime objects (and others in the future)
         detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-        # Store a local database of items as a cache. Autocommit is on
+        # Store a local database of items as a cache.
         self.__database = sqlite3.connect(
             os.environ.get('database_file', 'database/ebay_items.db'),
-            isolation_level=None,
             detect_types=detect_types)
 
         with self.__database:
@@ -71,6 +70,7 @@ class Database:
                 value TEXT
             );
         """)
+        self.__database.commit()
 
     def db_store_item_from_ebay(self, item):
         """
@@ -124,6 +124,7 @@ class Database:
             values['description'] = item['Description']
 
         self.__cursor.execute(query, values)
+        self.__database.commit()
 
         return self
 
@@ -171,6 +172,7 @@ class Database:
 
                 if metadata_count == 0:
                     self.__cursor.execute(query_to_insert, values)
+                    self.__database.commit()
                 else:
                     self.log.debug(has_metadata % (int(item['ItemID']), picture))
 
@@ -193,6 +195,7 @@ class Database:
 
                 if metadata_count == 0:
                     self.__cursor.execute(query_to_insert, values)
+                    self.__database.commit()
                 else:
                     self.log.debug(has_metadata % (int(item['ItemID']), detail['Name']))
 
@@ -222,3 +225,43 @@ class Database:
 
         self.__cursor.execute(query, values)
         return self.__cursor.fetchall()
+
+    def db_get_active_product_data(self, item_id):
+        """
+            For the provided `item_id`, the local database
+            is searched for the matching row and extracts it
+            if one is found, and it has quantity and is marked
+            as active
+
+            Returns a dictionary containing the product data
+            or an empty dictionary
+        """
+        query = """
+            SELECT
+                active, available_quantity, title, sku,
+                category_id, category_name, condition_name,
+                condition_description, description
+            FROM items
+            WHERE
+                available_quantity > 0 AND
+                active = 'Active' AND
+                itemid = :item_id
+            LIMIT 1
+        """
+
+        query_for_metadata = """
+            SELECT key, value FROM item_metadata
+            WHERE itemid = :item_id;
+        """
+
+        self.__cursor.execute(query, {'item_id': str(item_id),})
+        the_product = self.__cursor.fetchone()
+
+        product = {
+            'name': the_product[2],
+            'type': 'simple',
+            'description': the_product[8],
+            'short_description': the_product[7],
+        }
+
+        return product
