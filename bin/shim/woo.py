@@ -174,18 +174,6 @@ class WooCommerceShim(Database):
             self.log.error('Could not upload %s' % image['name'])
             return False
 
-    def create_product(self, item_id):
-        """
-            Pulls the product related to the `item_id`
-            out of the database and uploads it to WooCommerce
-
-            Returns the result as JSON
-        """
-        self.log.debug('Creating a WooCommerce product from ebay id: %s' % (item_id))
-
-        data = self.db_get_active_product_data(item_id)
-        return self.api.post('products', data).json()
-
     def update_product_with_image(self, post_id, image_url):
         """
             Updates the product selected with `post_id` to have
@@ -199,3 +187,23 @@ class WooCommerceShim(Database):
 
         data = {'images': [{'src': image_url}]}
         return self.api.put('products/%d' % (post_id), data).json()
+
+    def create_product(self, item_id):
+        """
+            Pulls the product related to the `item_id`
+            out of the database and uploads it to WooCommerce
+
+            Returns the result as JSON
+        """
+        self.log.debug('Creating a WooCommerce product from ebay id: %s' % (item_id))
+
+        data = self.db_get_active_product_data(item_id)
+        res = self.api.post('products', data).json()
+
+        if res.get('id', False):
+            images = self.download_product_images_from_ebay(item_id)
+            for image in images:
+                url = self.upload_image_to_woocommerce(images[image], res['id'])
+                if url:
+                    self.update_product_with_image(res['id'], url)
+            del images
