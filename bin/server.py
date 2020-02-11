@@ -31,6 +31,16 @@ if __name__ == '__main__':
 
     print('it works!')
 
+    # TODO: Put this process in a thread for each item id, up to X seperate threads - 4 should be a good maximum for now
+    # images = ebay_shim.download_product_images('352917480498')
+    # for image in images:
+    #     uploaded = woo_shim.upload_image(images[image], 5277)
+    #     try:
+    #         print(uploaded.json().get('guid', dict).get('raw'))
+    #     except AttributeError:
+    #         print('Did not upload %s' % image)
+    # del images
+
     # Store all items that started within this date range
     # ebay_shim.set_date_range(start_date='2020-02-01', days=1).set_range_filter()
     # # This will also store metadata for items that are still active
