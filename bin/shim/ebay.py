@@ -6,9 +6,7 @@
 # Standard Library modules
 import os
 import sys
-import time
 import logging
-import requests
 import datetime
 
 # Local modules
@@ -319,60 +317,6 @@ class EbayShim(Database):
             self.__get_item_metadata()
 
         return self
-
-    def download_product_images(self, item_id):
-        """
-            Downloads all of the images for a provided `item_id` and 
-            returns a dictionary containing the image name, mime type, and
-            bytes-like object for the raw images
-
-            The image URLs come from the database table `item_metadata`,
-            which is populated when `self.__get_item_metadata()` runs
-        """
-
-        images = {}
-        count = 0
-
-        image_urls = self.db_get_product_image_urls(item_id)
-        image_urls_count = len(image_urls)
-
-        if image_urls_count > 0:
-            self.log.debug("Found %d image URLs for: %s" % (image_urls_count, item_id))
-
-            for image in image_urls:
-                url = image[0]
-
-                self.log.debug("Downloading %s" % (url))
-                req = requests.get(url)
-
-                if req.content:
-                    mime_type = req.headers.get('Content-Type', '')
-                    slug = '%s-%d' % (item_id, count)
-                    extension = mime_type.split('/')[1]
-                    filename = '%s.%s' % (slug, extension)
-
-                    images[filename] = {
-                        'name': filename,
-                        'type': mime_type,
-                        'slug': slug,
-                        'data': req.content,
-                    }
-
-                    self.log.info("Image %s downloaded" % (filename))
-
-                    if count < image_urls_count:
-                        self.log.info("Waiting 5 seconds until next download")
-                        time.sleep(5)
-                else:
-                    self.log.error(
-                        "No content returned. Is %s reachable in a browser?" % (url)
-                    )
-
-                count += 1
-        else:
-            self.log.warning("No Image URLs found for item: %s" % (item_id))
-
-        return images
 
     def __print_response(self, full=False):
         if self.ebay.warnings():

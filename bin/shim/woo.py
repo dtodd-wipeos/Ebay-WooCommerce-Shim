@@ -5,7 +5,9 @@
 
 import os
 import sys
+import time
 import logging
+import requests
 
 from .db import Database
 
@@ -51,23 +53,79 @@ class WooCommerceShim(Database):
             consumer_secret=False
         )
 
-    def __does_image_exist(self, slug):
+    def __does_image_exist_on_woocommerce(self, filename):
         """
             Searches the Wordpress media library for
-            any files that have a URL `slug` that
+            any files that have a URL `filename` that
             matches the one provided
 
             Returns True if the file exists, and False otherwise
         """
 
-        self.log.debug('Checking if a file has a slug matching: %s' % (slug))
-        result = self.wp_api.get('/media?slug=%s' % (slug)).json()
+        self.log.debug('Checking if a file has a filename matching: %s' % (filename))
+        result = self.wp_api.get('/media?title=%s' % (filename)).json()
+
+        print(result)
 
         if len(result) == 0:
             return False
         return True
 
-    def upload_image(self, image, post_id):
+    def download_product_images_from_ebay(self, item_id):
+        """
+            Downloads all of the images for a provided `item_id` and 
+            returns a dictionary containing the image name, mime type, and
+            bytes-like object for the raw images
+
+            The image URLs come from the database table `item_metadata`,
+            which is populated when `self.__get_item_metadata()` runs
+        """
+
+        images = {}
+        count = 0
+
+        image_urls = self.db_get_product_image_urls(item_id)
+        image_urls_count = len(image_urls)
+
+        if image_urls_count > 0:
+            self.log.debug("Found %d image URLs for: %s" % (image_urls_count, item_id))
+
+            for image in image_urls:
+                url = image[0]
+
+                self.log.debug("Downloading %s" % (url))
+                req = requests.get(url)
+
+                if req.content:
+                    mime_type = req.headers.get('Content-Type', '')
+                    slug = '%s-%d' % (item_id, count)
+                    extension = mime_type.split('/')[1]
+                    filename = '%s.%s' % (slug, extension)
+
+                    images[filename] = {
+                        'slug': slug,
+                        'name': filename,
+                        'type': mime_type,
+                        'data': req.content,
+                    }
+
+                    self.log.info("Image %s downloaded" % (filename))
+
+                    if count < image_urls_count:
+                        self.log.info("Waiting 5 seconds until next download")
+                        time.sleep(5)
+                else:
+                    self.log.error(
+                        "No content returned. Is %s reachable in a browser?" % (url)
+                    )
+
+                count += 1
+        else:
+            self.log.warning("No Image URLs found for item: %s" % (item_id))
+
+        return images
+
+    def upload_image_to_woocommerce(self, image, post_id):
         """
             Uploads the provided `image` to wordpress, and returns the response
 
@@ -83,23 +141,61 @@ class WooCommerceShim(Database):
 
             `post_id` is the post in which to attach the image to. This is returned in the
             response from `self.create_product()`
+
+            Returns either a string containing the URL the image can be found at, or False
+            if the image fails to be uploaded
         """
 
-        # Don't upload a duplicate image if it was uploaded in the past
-        if self.__does_image_exist(image.get('slug', '')):
-            self.log.warning(
-                "Image %s already exists on wordpress. Not uploading again" % (image.get('name'))
-            )
-            return None
-
-        self.log.info("Uploading %s to wordpress" % (image.get('name')))
+        self.log.debug("Uploading %s to wordpress" % (image.get('name')))
 
         endpoint = '/media?post=%d' % (post_id)
 
         headers = {
             'cache-control': 'no-cache',
-            'content-disposition': 'attachment; filename=%s' % (image.get('name', '')),
+            'content-disposition': 'attachment; filename=%s' % (image.get('name')),
             'content-type': '%s' % (image.get('type', ''))
         }
 
-        return self.wp_api.post(endpoint, image.get('data'), headers=headers)
+        # Don't upload a duplicate image if it was uploaded in the past
+        if self.__does_image_exist_on_woocommerce(image.get('slug')):
+            self.log.warning(
+                "Image %s already exists on wordpress. Not uploading again" % (image.get('name'))
+            )
+            return False
+
+        # Upload the image
+        uploaded = self.wp_api.post(endpoint, image.get('data'), headers=headers)
+
+        try:
+            url = uploaded.json().get('guid', dict).get('raw')
+            self.log.debug("Uploaded %s to %s" % (image['name'], url))
+            return url
+        except AttributeError:
+            self.log.error('Could not upload %s' % image['name'])
+            return False
+
+    def create_product(self, item_id):
+        """
+            Pulls the product related to the `item_id`
+            out of the database and uploads it to WooCommerce
+
+            Returns the result as JSON
+        """
+        self.log.debug('Creating a WooCommerce product from ebay id: %s' % (item_id))
+
+        data = self.db_get_active_product_data(item_id)
+        return self.api.post('products', data).json()
+
+    def update_product_with_image(self, post_id, image_url):
+        """
+            Updates the product selected with `post_id` to have
+            the featured image be `image_url`
+
+            Returns the result as JSON
+        """
+        self.log.debug(
+            'Updating Product id: %s with %s as the featured image' % (post_id, image_url)
+        )
+
+        data = {'images': [{'src': image_url}]}
+        return self.api.put('products/%d' % (post_id), data).json()
