@@ -41,7 +41,7 @@ if __name__ == '__main__':
         # 124072049703,
     ]
 
-    ProductQueue().product_queue_handler(item_ids)
+    ProductQueue().handler(item_ids)
 
     # Store all items that started within this date range
     # ebay_shim.set_date_range(start_date='2020-02-01', days=1).set_range_filter()

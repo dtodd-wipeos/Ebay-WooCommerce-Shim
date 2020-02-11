@@ -26,15 +26,15 @@ class ProductQueue:
         self.log.addHandler(log_handler)
 
         # Create a queue for products
-        self.product_queue = queue.Queue()
+        self.queue = queue.Queue()
         self.threads = []
 
-    def product_creation_worker(self):
+    def worker(self):
         woo_shim = WooCommerceShim()
 
         while True:
             # Pop an item off of the queue
-            item_id = self.product_queue.get()
+            item_id = self.queue.get()
             if item_id is None:
                 break
 
@@ -44,26 +44,26 @@ class ProductQueue:
             woo_shim.create_product(item_id)
 
             # This item is done, move to the next one
-            self.product_queue.task_done()
+            self.queue.task_done()
 
-    def product_queue_handler(self, item_ids):
+    def handler(self, item_ids):
         # Put the products into the Queue
         self.log.info('Populating queue with ebay item ids')
         for item_id in item_ids:
-            self.product_queue.put_nowait(item_id)
+            self.queue.put_nowait(item_id)
 
         # Start the worker threads
         self.log.info('Starting %d worker threads' % (MAX_WORKERS))
         for _ in range(MAX_WORKERS):
-            t = threading.Thread(target=ProductQueue.product_creation_worker, args=(self,))
+            t = threading.Thread(target=self.worker)
             t.start()
             self.threads.append(t)
 
         # Wait for the queue to be exhausted
         self.log.debug('Waiting for queue to empty')
-        self.product_queue.join()
+        self.queue.join()
         for _ in range(MAX_WORKERS):
-            self.product_queue.put_nowait(None)
+            self.queue.put_nowait(None)
 
         self.log.info('Waiting for all threads to finish')
         for t in self.threads:
