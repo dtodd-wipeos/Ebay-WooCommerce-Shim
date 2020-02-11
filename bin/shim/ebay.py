@@ -347,12 +347,14 @@ class EbayShim(Database):
 
                 if req.content:
                     mime_type = req.headers.get('Content-Type', '')
+                    slug = '%s-%d' % (item_id, count)
                     extension = mime_type.split('/')[1]
-                    filename = '%s-%d.%s' % (item_id, count, extension)
+                    filename = '%s.%s' % (slug, extension)
 
                     images[filename] = {
                         'name': filename,
                         'type': mime_type,
+                        'slug': slug,
                         'data': req.content,
                     }
 

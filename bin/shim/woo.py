@@ -51,6 +51,22 @@ class WooCommerceShim(Database):
             consumer_secret=False
         )
 
+    def __does_image_exist(self, slug):
+        """
+            Searches the Wordpress media library for
+            any files that have a URL `slug` that
+            matches the one provided
+
+            Returns True if the file exists, and False otherwise
+        """
+
+        self.log.debug('Checking if a file has a slug matching: %s' % (slug))
+        result = self.wp_api.get('/media?slug=%s' % (slug)).json()
+
+        if len(result) == 0:
+            return False
+        return True
+
     def upload_image(self, image, post_id):
         """
             Uploads the provided `image` to wordpress, and returns the response
@@ -68,6 +84,15 @@ class WooCommerceShim(Database):
             `post_id` is the post in which to attach the image to. This is returned in the
             response from `self.create_product()`
         """
+
+        # Don't upload a duplicate image if it was uploaded in the past
+        if self.__does_image_exist(image.get('slug', '')):
+            self.log.warning(
+                "Image %s already exists on wordpress. Not uploading again" % (image.get('name'))
+            )
+            return None
+
+        self.log.info("Uploading %s to wordpress" % (image.get('name')))
 
         endpoint = '/media?post=%d' % (post_id)
 
