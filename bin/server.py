@@ -5,60 +5,10 @@
 
 import os
 import sys
-import queue
 import logging
-import threading
 
 from shim.ebay import EbayShim
-from shim.woo import WooCommerceShim
-
-MAX_WORKERS = 4
-
-class ProductQueue:
-    def __init__(self):
-        # Create a queue for products
-        self.product_queue = queue.Queue()
-        self.threads = []
-
-    def product_creation_worker(self):
-        woo_shim = WooCommerceShim()
-
-        while True:
-            # Pop an item off of the queue
-            item_id = self.product_queue.get()
-            if item_id is None:
-                break
-
-            log.debug('Creating item_id from item id: %d' % (item_id))
-
-            # Create the product and upload the image(s)
-            woo_shim.create_product(item_id)
-
-            # This item is done, move to the next one
-            self.product_queue.task_done()
-
-    def product_queue_handler(self, item_ids):
-        # Put the products into the Queue
-        log.info('Populating queue with ebay item ids')
-        for item_id in item_ids:
-            self.product_queue.put_nowait(item_id)
-
-        # Start the worker threads
-        log.info('Starting %d worker threads' % (MAX_WORKERS))
-        for _ in range(MAX_WORKERS):
-            t = threading.Thread(target=ProductQueue.product_creation_worker, args=(self,))
-            t.start()
-            self.threads.append(t)
-
-        # Wait for the queue to be exhausted
-        log.debug('Waiting for queue to empty')
-        self.product_queue.join()
-        for _ in range(MAX_WORKERS):
-            self.product_queue.put_nowait(None)
-
-        log.info('Waiting for all threads to finish')
-        for t in self.threads:
-            t.join()
+from shim.queue import ProductQueue
 
 if __name__ == '__main__':
 
