@@ -53,19 +53,17 @@ class WooCommerceShim(Database):
             consumer_secret=False
         )
 
-    def __does_image_exist_on_woocommerce(self, filename):
+    def __does_image_exist_on_woocommerce(self, slug):
         """
             Searches the Wordpress media library for
-            any files that have a URL `filename` that
+            any files that have a URL `slug` that
             matches the one provided
 
             Returns True if the file exists, and False otherwise
         """
 
-        self.log.debug('Checking if a file has a filename matching: %s' % (filename))
-        result = self.wp_api.get('/media?title=%s' % (filename)).json()
-
-        print(result)
+        self.log.debug('Checking if a file has a slug matching: %s' % (slug))
+        result = self.wp_api.get('/media?slug=%s' % (slug)).json()
 
         if len(result) == 0:
             return False
@@ -153,7 +151,7 @@ class WooCommerceShim(Database):
         headers = {
             'cache-control': 'no-cache',
             'content-disposition': 'attachment; filename=%s' % (image.get('name')),
-            'content-type': '%s' % (image.get('type', ''))
+            'content-type': '%s' % (image.get('type'))
         }
 
         # Don't upload a duplicate image if it was uploaded in the past
