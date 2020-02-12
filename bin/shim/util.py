@@ -3,6 +3,13 @@
 # Copyright 2020 David Todd <dtodd@oceantech.com>
 # License: Properitary
 
+"""
+    This file contains constants and utility methods
+    that are used all over the place
+
+    For now, the only constant we need is LOG_HANDLER
+"""
+
 import sys
 import logging
 
