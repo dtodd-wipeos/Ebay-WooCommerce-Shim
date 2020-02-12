@@ -10,11 +10,7 @@ import threading
 
 from shim.ebay import EbayShim
 from shim.queue import ProductUploadQueue
-
-# Log to console
-log_handler = logging.StreamHandler(sys.stdout)
-log_format = logging.Formatter('%(asctime)s - %(name)s.%(funcName)s - %(levelname)s - %(message)s')
-log_handler.setFormatter(log_format)
+from shim.util import LOG_HANDLER
 
 class Server:
     """
@@ -29,7 +25,7 @@ class Server:
         # Set up logging
         self.log = logging.getLogger(__name__)
         self.log.setLevel(os.environ.get('log_level', 'INFO'))
-        self.log.addHandler(log_handler)
+        self.log.addHandler(LOG_HANDLER)
 
         self.threads = []
         self.start()

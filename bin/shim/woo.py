@@ -10,6 +10,7 @@ import logging
 import requests
 
 from .db import Database
+from .util import LOG_HANDLER
 
 from woocommerce import API as WCAPI
 from wordpress import API as WPAPI
@@ -30,10 +31,7 @@ class WooCommerceShim(Database):
         # Setup logging
         self.log = logging.getLogger(__name__)
         self.log.setLevel(os.environ.get('log_level', 'INFO'))
-        log_handler = logging.StreamHandler(sys.stdout)
-        log_format = logging.Formatter('%(asctime)s - %(name)s.%(funcName)s - %(levelname)s - %(message)s')
-        log_handler.setFormatter(log_format)
-        self.log.addHandler(log_handler)
+        self.log.addHandler(LOG_HANDLER)
 
         self.api = WCAPI(
             url=os.environ.get('woo_url', False),

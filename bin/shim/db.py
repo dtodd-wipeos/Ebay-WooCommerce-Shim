@@ -8,6 +8,8 @@ import sys
 import sqlite3
 import logging
 
+from .util import LOG_HANDLER
+
 import isodate
 
 class Database:
@@ -20,10 +22,7 @@ class Database:
         # Setup logging
         self.log = logging.getLogger(__name__)
         self.log.setLevel(os.environ.get('log_level', 'INFO'))
-        log_handler = logging.StreamHandler(sys.stdout)
-        log_format = logging.Formatter('%(asctime)s - %(name)s.%(funcName)s - %(levelname)s - %(message)s')
-        log_handler.setFormatter(log_format)
-        self.log.addHandler(log_handler)
+        self.log.addHandler(LOG_HANDLER)
 
         # Setup database
         # Used to convert datetime objects (and others in the future)

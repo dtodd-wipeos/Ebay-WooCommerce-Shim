@@ -10,6 +10,7 @@ import logging
 import threading
 
 from .woo import WooCommerceShim
+from .util import LOG_HANDLER
 
 # I've had a hell of a time making the Queue
 # work in the threadsafe way that it says it
@@ -18,11 +19,6 @@ from .woo import WooCommerceShim
 # task of downloading images, creating
 # products, and uploading images
 MAX_WORKERS = 1
-
-# Log to console
-log_handler = logging.StreamHandler(sys.stdout)
-log_format = logging.Formatter('%(asctime)s - %(name)s.%(funcName)s - %(levelname)s - %(message)s')
-log_handler.setFormatter(log_format)
 
 class BaseQueue:
     """
@@ -40,7 +36,7 @@ class BaseQueue:
         # Set up logging
         self.log = logging.getLogger(__name__)
         self.log.setLevel(os.environ.get('log_level', 'INFO'))
-        self.log.addHandler(log_handler)
+        self.log.addHandler(LOG_HANDLER)
 
         # Create a FIFO queue for products
         self.queue = queue.Queue()

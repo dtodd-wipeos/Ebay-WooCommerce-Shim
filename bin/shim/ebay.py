@@ -11,6 +11,7 @@ import datetime
 
 # Local modules
 from .db import Database
+from .util import LOG_HANDLER
 
 # External modules
 from ebaysdk.trading import Connection as Trading
@@ -37,10 +38,7 @@ class EbayShim(Database):
         # Setup logging
         self.log = logging.getLogger(__name__)
         self.log.setLevel(os.environ.get('log_level', 'INFO'))
-        log_handler = logging.StreamHandler(sys.stdout)
-        log_format = logging.Formatter('%(asctime)s - %(name)s.%(funcName)s - %(levelname)s - %(message)s')
-        log_handler.setFormatter(log_format)
-        self.log.addHandler(log_handler)
+        self.log.addHandler(LOG_HANDLER)
 
         # Setup Internals
         # Contains the range of listings to search (defined at `set_date_range`)
