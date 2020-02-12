@@ -38,7 +38,7 @@ class BaseQueue:
         self.log.setLevel(os.environ.get('log_level', 'INFO'))
         self.log.addHandler(LOG_HANDLER)
 
-        # Create a FIFO queue for products
+        # Create a FIFO queue for what is being worked on
         self.queue = queue.Queue()
         # How many threads will we have? Defaults to `MAX_WORKERS`
         self.workers = workers
