@@ -55,7 +55,7 @@ class Server:
             124072049703,
         ]
 
-        ProductUploadQueue(item_ids).start()
+        ProductUploadQueue(item_ids)
 
     def __start_threads(self):
         """

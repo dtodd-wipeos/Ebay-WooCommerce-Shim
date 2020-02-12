@@ -111,6 +111,8 @@ class ProductUploadQueue(BaseQueue):
         for item_id in item_ids:
             self.queue.put_nowait(item_id)
 
+        self.start()
+
     def worker(self):
         """
             Creates an API connection to the database
@@ -128,8 +130,6 @@ class ProductUploadQueue(BaseQueue):
             item_id = self.queue.get()
             if item_id is None:
                 break
-
-            self.log.debug('Creating WooCommerce product for ebay item: %d' % (item_id))
 
             api.create_product(item_id)
 
