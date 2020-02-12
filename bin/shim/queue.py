@@ -24,13 +24,19 @@ log_handler = logging.StreamHandler(sys.stdout)
 log_format = logging.Formatter('%(asctime)s - %(name)s.%(funcName)s - %(levelname)s - %(message)s')
 log_handler.setFormatter(log_format)
 
-class ProductUploadQueue:
-    def __init__(self, item_ids, workers=MAX_WORKERS):
+class BaseQueue:
+    """
+        Provides a base for common methods that are shared between the queues
+    """
+
+    def __init__(self, workers=MAX_WORKERS, *args, **kwargs):
         """
             Sets up internal information, such as the items
             to work on, and optionally how many worker threads
             to have (default of 1)
         """
+        super(BaseQueue, self).__init__(*args, **kwargs)
+
         # Set up logging
         self.log = logging.getLogger(__name__)
         self.log.setLevel(os.environ.get('log_level', 'INFO'))
@@ -43,10 +49,6 @@ class ProductUploadQueue:
         # Might not be necessary, but allows us to perform
         # administrative stuff on a per-thread basis
         self.threads = []
-
-        self.log.info('Populating queue with ebay item ids')
-        for item_id in item_ids:
-            self.queue.put_nowait(item_id)
 
     def __start_threads(self):
         """
@@ -78,6 +80,43 @@ class ProductUploadQueue:
 
     def worker(self):
         """
+            Provide a dummy worker, to be replaced by the inherting class
+        """
+        pass
+
+    def start(self):
+        """
+            Endpoint to kick off the threads
+            and block until they are complete
+
+            HINT: You probably want to run this class
+            in its own thread so as to not block the
+            whole server
+        """
+        self.__start_threads()
+        self.__finish_queue()
+        self.__finish_threads()
+
+class ProductUploadQueue(BaseQueue):
+    """
+        Provides a queue for adding products to WooCommerce
+        and a method for processing the queue in parallel
+    """
+
+    def __init__(self, item_ids, workers=MAX_WORKERS, *args, **kwargs):
+        """
+            Sets up internal information, such as the items
+            to work on, and optionally how many worker threads
+            to have (default of 1)
+        """
+        super(ProductUploadQueue, self).__init__(workers=workers, *args, **kwargs)
+
+        self.log.info('Populating queue with ebay item ids')
+        for item_id in item_ids:
+            self.queue.put_nowait(item_id)
+
+    def worker(self):
+        """
             Creates an API connection to the database
             and runs the method to download images from
             ebay, upload the product data to woocommerce,
@@ -99,16 +138,3 @@ class ProductUploadQueue:
             api.create_product(item_id)
 
             self.queue.task_done()
-
-    def start(self):
-        """
-            Endpoint to kick off the threads
-            and block until they are complete
-
-            HINT: You probably want to run this class
-            in its own thread so as to not block the
-            whole server
-        """
-        self.__start_threads()
-        self.__finish_queue()
-        self.__finish_threads()
