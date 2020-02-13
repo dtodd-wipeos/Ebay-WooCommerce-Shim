@@ -294,10 +294,12 @@ class EbayShim(Database):
 
             for item in item_list:
                 # Store the items in the database for use in syncing to wordpress
-                self.db_store_item_from_ebay(item).db_store_item_metadata_from_ebay(item)
+                self.db_store_item_from_ebay(item)
 
                 if item['SellingStatus']['ListingStatus'] == 'Active':
                     items_active += 1
+                    # Store the metadata for active items only
+                    self.db_store_item_metadata_from_ebay(item)
                     # Store active item ids so that we can fetch ItemSpecifics
                     self.got_item_ids.append(item['ItemID'])
                 else:
@@ -311,8 +313,8 @@ class EbayShim(Database):
         else:
             self.log.error('Got no items from the search. Try adjusting the date range')
 
-        if len(self.got_item_ids) > 0:
-            self.__get_item_metadata()
+        # if len(self.got_item_ids) > 0:
+        #     self.__get_item_metadata()
 
         return self
 
