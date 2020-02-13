@@ -90,12 +90,12 @@ class Database:
                 itemid, active, available_quantity,
                 title, sku, start_date, end_date,
                 category_id, category_name, condition_name,
-                condition_description, description
+                condition_description
             ) VALUES (
                 :itemid, :active, :available_quantity,
                 :title, :sku, :start_date, :end_date,
                 :category_id, :category_name, :condition_name,
-                :condition_description, :description)
+                :condition_description)
         """
 
         values = {
@@ -110,7 +110,6 @@ class Database:
             'category_name': item['PrimaryCategory']['CategoryName'],
             'condition_name': '',
             'condition_description': '',
-            'description': '',
         }
 
         # These fields have a chance to not exist, so we set default empty values
@@ -119,24 +118,12 @@ class Database:
             values['condition_name'] = item['ConditionDisplayName']
         if item.get('ConditionDescription', False):
             values['condition_description'] = item['ConditionDescription']
-        if item.get('Description', False):
-            values['description'] = item['Description']
 
         self.__cursor.execute(query, values)
 
         return self
 
-    def db_store_item_metadata_from_ebay(self, item):
-        """
-            Store the provided `item`, which is a dictionary,
-            into the local database. We're specifically after
-            metadata such as picture urls, and item specifics.
-
-            When this is called from GetSellerList, the PictureDetails
-            are what are normally provided. When this is called from
-            GetItem, ItemSpecifics are what are normally provided
-        """
-
+    def __store_key_value(self, item_id, key, value):
         has_metadata = "%d already has metadata for %s"
 
         # Determine if we already have a record that matches exactly
@@ -154,24 +141,49 @@ class Database:
             ) values (:itemid, :key, :value)
         """
 
+        values = {
+            'itemid': int(item_id),
+            'key': key,
+            'value': value,
+        }
+
+        metadata_count = len(
+            self.__cursor.execute(query_for_existing, values).fetchall()
+        )
+
+        if metadata_count == 0:
+            self.__cursor.execute(query_to_insert, values)
+        else:
+            self.log.debug(has_metadata % (int(item_id), value))
+
+    def db_store_item_metadata_from_ebay(self, item):
+        """
+            Store the provided `item`, which is a dictionary,
+            into the local database. We're specifically after
+            metadata such as picture urls, and item specifics.
+
+            When this is called from GetSellerList, the PictureDetails
+            are what are normally provided. When this is called from
+            GetItem, ItemSpecifics are what are normally provided
+        """
+
         # PictureDetails exists on GetSellerList and GetItem, so this should always get hit
         if item.get('PictureDetails', False):
             self.log.debug('Found Picture Details for %d' % (int(item['ItemID'])))
-            for picture in item['PictureDetails']['PictureURL']:
-                values = {
-                    'itemid': int(item['ItemID']),
-                    'key': 'picture_url',
-                    'value': picture,
-                }
+            if type(item['PictureDetails']['PictureURL']) is list:
+                for picture in item['PictureDetails']['PictureURL']:
+                    self.__store_key_value(item['ItemID'], 'picture_url', picture)
 
-                metadata_count = len(
-                    self.__cursor.execute(query_for_existing, values).fetchall()
-                )
+            # Case for only one picture being on a listing
+            elif type(item['PictureDetails']['PictureURL']) is str:
+                self.__store_key_value(
+                    item['ItemID'], 'picture_url',
+                    item['PictureDetails']['PictureURL'])
 
-                if metadata_count == 0:
-                    self.__cursor.execute(query_to_insert, values)
-                else:
-                    self.log.debug(has_metadata % (int(item['ItemID']), picture))
+            else:
+                err_msg = 'Unexpected type %s from PictureDetails. Expecting either list or str'
+                self.log.error(err_msg % (type(item['PictureDetails']['PictureURL'])))
+
 
         # ItemSpecifics only exists on GetItem when `IncludeItemSpecifics` is True
         if item.get('ItemSpecifics', False):
@@ -180,20 +192,7 @@ class Database:
                 if type(detail['Value']) is list:
                     detail['Value'] = ', '.join(detail['Value'])
 
-                values = {
-                    'itemid': int(item['ItemID']),
-                    'key': detail['Name'],
-                    'value': detail['Value'],
-                }
-
-                metadata_count = len(
-                    self.__cursor.execute(query_for_existing, values).fetchall()
-                )
-
-                if metadata_count == 0:
-                    self.__cursor.execute(query_to_insert, values)
-                else:
-                    self.log.debug(has_metadata % (int(item['ItemID']), detail['Name']))
+                self.__store_key_value(item['ItemID'], detail['Name'], detail['Value'])
 
         return self
 
