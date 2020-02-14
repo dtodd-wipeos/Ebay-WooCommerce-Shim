@@ -272,10 +272,38 @@ class Database:
         self.__execute(query, values)
         return dict(self.__cursor.fetchone())
 
-        query_for_metadata = """
-            SELECT key, value FROM item_metadata
-            WHERE itemid = :item_id;
+    def db_get_all_product_metadata(self, item_id):
         """
+            For the provided `item_id`, the local database
+            is searched for all occurrences of metadata that
+            match, and extracts that if any are found
+
+            Returns a list of dictionaries, where each dictionary
+            is one key-value combination for the data stored
+            or an empty list if nothing is found
+        """
+        query = "SELECT key, value FROM item_metadata WHERE itemid = :item_id;"
+        values = {
+            'item_id': str(item_id),
+        }
+
+        self.__execute(query, values)
+        return [ dict(row) for row in self.__cursor.fetchall() if row ]
+
+    def db_get_active_item_ids(self):
+        """
+            Searches the local database for all items that
+            are marked as active
+
+            Returns a list containing all the item ids
+        """
+        self.log.debug('Getting all active IDs')
+        query = "SELECT itemid FROM items WHERE active = 'Active';"
+
+        self.__execute(query)
+        item_ids = self.__cursor.fetchall()
+
+        return [ i['itemid'] for i in item_ids if i['itemid'] ]
 
         self.__cursor.execute(query, {'item_id': str(item_id),})
         the_product = self.__cursor.fetchone()
