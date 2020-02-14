@@ -39,6 +39,7 @@ class Database:
             # Get a cursor to execute statements
             self.__cursor = self.__database.cursor()
         self.__create_tables()
+        self.__migrate_tables()
 
     def __create_tables(self):
         """
@@ -63,18 +64,33 @@ class Database:
                 category_name TEXT,
                 condition_name TEXT,
                 condition_description TEXT,
-                description TEXT,
-                post_id INTEGER
+                description TEXT
             );
 
             CREATE TABLE IF NOT EXISTS item_metadata (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 itemid INTEGER,
                 key TEXT,
-                value TEXT,
-                post_id INTEGER
+                value TEXT
             );
         """)
+
+    def __migrate_tables(self):
+        """
+            Automatically apply table migrations
+            when the database is initalized
+        """
+        def get_version():
+            self.__execute('PRAGMA user_version')
+            return self.__cursor.fetchone()[0]
+
+        if get_version() == 0:
+            query = """
+                ALTER TABLE items ADD post_id INTEGER;
+                ALTER TABLE item_metadata ADD post_id INTEGER;
+                PRAGMA user_version = 1;
+            """
+            self.__cursor.executescript(query)
 
     def __execute(self, query, values={}):
         """
