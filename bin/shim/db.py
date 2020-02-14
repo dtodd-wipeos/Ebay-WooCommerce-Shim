@@ -243,31 +243,6 @@ class Database:
 
         return self
 
-    def db_get_product_image_urls(self, item_id):
-        """
-            Gets all product image URLs that are
-            associated with a particular `item_id`
-
-            Returns a list containing one or more
-            URLs to download images from, sorted
-            alphabetically
-        """
-
-        query = """
-            SELECT value FROM item_metadata
-            WHERE
-                itemid = :item_id AND
-                key = 'picture_url'
-            ORDER BY value;
-        """
-
-        values = {
-            'item_id': str(item_id),
-        }
-
-        self.__execute(query, values)
-        return self.__cursor.fetchall()
-
     def db_get_product_data(self, item_id):
         """
             For the provided `item_id`, the local database
@@ -292,6 +267,31 @@ class Database:
 
         self.__execute(query, values)
         return dict(self.__cursor.fetchone())
+
+    def db_get_product_image_urls(self, item_id):
+        """
+            Gets all product image URLs that are
+            associated with a particular `item_id`
+
+            Returns a list containing one or more
+            URLs to download images from, sorted
+            alphabetically
+        """
+
+        query = """
+            SELECT value, post_id FROM item_metadata
+            WHERE
+                itemid = :item_id AND
+                key = 'picture_url'
+            ORDER BY value;
+        """
+
+        values = {
+            'item_id': str(item_id),
+        }
+
+        self.__execute(query, values)
+        return [ dict(row) for row in self.__cursor.fetchall() if row ]
 
     def db_get_all_product_metadata(self, item_id):
         """

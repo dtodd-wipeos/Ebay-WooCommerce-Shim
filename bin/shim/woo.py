@@ -80,14 +80,18 @@ class WooCommerceShim(Database):
         images = {}
         count = 0
 
-        image_urls = self.db_get_product_image_urls(item_id)
-        image_urls_count = len(image_urls)
+        images = self.db_get_product_image_urls(item_id)
+        image_urls_count = len(images)
 
         if image_urls_count > 0:
             self.log.debug("Found %d image URLs for: %s" % (image_urls_count, item_id))
 
-            for image in image_urls:
-                url = image[0]
+            for image in images:
+                url = image.get('value', '')
+
+                if image.get('post_id') is not None:
+                    self.log.warning("We've already uploaded %s, skipping download" % (url))
+                    continue
 
                 self.log.debug("Downloading %s" % (url))
                 req = requests.get(url)
