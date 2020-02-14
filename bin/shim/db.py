@@ -74,7 +74,27 @@ class Database:
             );
         """)
 
+    def __execute(self, query, values={}):
+        """
+            Shortcut to execute an SQL `query`
+            with `values` being an optional dictionary
+            of named parameters (referenced in the
+            query)
+
+            Named parameters reduce the risk of SQL
+            injection at the database level without
+            having to steralize the content ourselves
+        """
+        return self.__cursor.execute(query, values)
+
     def __get_datetime_obj(self, time_string):
+        """
+            Parses an ISO 8601 date (such as provided by the ebay API)
+            and returns a `datetime.datetime` object without the timezone
+
+            We strip the timezone because sqlite's datetime parser doesn't
+            know how to deal with them. Ebay's item times are always in UTC
+        """
         return isodate.parse_datetime(time_string).replace(tzinfo=None)
 
     def db_store_item_from_ebay(self, item):
@@ -238,17 +258,19 @@ class Database:
             or an empty dictionary
         """
         query = """
-            SELECT
-                active, available_quantity, title, sku,
-                category_id, category_name, condition_name,
-                condition_description, description
+            SELECT *
             FROM items
             WHERE
                 available_quantity > 0 AND
-                active = 'Active' AND
                 itemid = :item_id
             LIMIT 1
         """
+        values = {
+            'item_id': str(item_id),
+        }
+
+        self.__execute(query, values)
+        return dict(self.__cursor.fetchone())
 
         query_for_metadata = """
             SELECT key, value FROM item_metadata
