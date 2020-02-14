@@ -6,8 +6,11 @@
 # Standard Library modules
 import os
 import sys
+import time
 import logging
 import datetime
+
+from requests import exceptions
 
 # Local modules
 from .db import Database
@@ -380,5 +383,10 @@ class EbayShim(Database):
         except ConnectionError as e:
             self.log.exception(e)
             self.log.exception(e.response.dict())
+    
+        except exceptions.ReadTimeout:
+            self.log.exception('The Previous request Timed Out. Waiting 5s before retrying')
+            time.sleep(5)
+            self.try_command(command)
 
         return self
