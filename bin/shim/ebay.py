@@ -230,16 +230,23 @@ class EbayShim(Database):
         
         return self
 
-    def __get_item_metadata(self):
+    def get_item_metadata(self):
         """
             Iterates over all of the active items (`self.got_item_ids`)
             and makes an API request to get the ItemSpecifics (details
             such as the specs of the device, etc). These requests are
             then stored in the item_metadata table.
 
+            If `self.got_item_ids` does not contain at least one item,
+            it will be populated with all items that are marked as active
+
             TODO: Throttle this so we don't hit our daily limit of 5k
             API calls
         """
+
+        if not self.got_item_ids:
+            self.got_item_ids = self.db_get_active_item_ids()
+
         if self.got_item_ids:
             for item_id in self.got_item_ids:
                 # Get the item, with specifc details (specs)
@@ -317,7 +324,7 @@ class EbayShim(Database):
             self.log.error('Got no items from the search. Try adjusting the date range')
 
         # if len(self.got_item_ids) > 0:
-        #     self.__get_item_metadata()
+        #     self.get_item_metadata()
 
         return self
 
@@ -357,6 +364,7 @@ class EbayShim(Database):
         """
         __available_commands = [
             'get_seller_list',
+            'get_item_metadata',
         ]
 
         err_msg = "Command %s is unrecognized. Supported commands are: %s" % (
@@ -375,6 +383,9 @@ class EbayShim(Database):
                 # If there are still items to get, get them
                 while self.pagination_received_items < self.pagination_total_items:
                     self.get_seller_list().__print_response()
+
+            if command == 'get_item_metadata':
+                self.get_item_metadata()
 
             else:
                 self.log.debug(err_msg)
