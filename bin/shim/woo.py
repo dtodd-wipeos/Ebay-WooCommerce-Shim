@@ -191,7 +191,7 @@ class WooCommerceShim(Database):
             for the truthyness of `post_id`
         """
         data = self.db_get_product_data(item_id)
-        if data.get('post_id', False):
+        if data.get('post_id') is not None:
             return True
         return False
 
