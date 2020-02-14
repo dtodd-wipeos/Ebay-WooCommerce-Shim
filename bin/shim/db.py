@@ -34,6 +34,9 @@ class Database:
             detect_types=detect_types)
 
         with self.__database:
+            # Get column names with select queries
+            self.__database.row_factory = sqlite3.Row
+            # Get a cursor to execute statements
             self.__cursor = self.__database.cursor()
         self.__create_tables()
 

@@ -207,12 +207,20 @@ class WooCommerceShim(Database):
         if self.does_product_exist:
             self.log.warning('Product with item id %d already exists, skipping' % (item_id))
             return self
+
+        data = self.db_get_product_data(item_id)
+
+        # TODO: Format the data as it is expected on the API
+
         res = self.api.post('products', data).json()
 
         if res.get('id', False):
+            self.db_product_uploaded(item_id, res['id'])
+
             images = self.download_product_images_from_ebay(item_id)
             for image in images:
                 url = self.upload_image_to_woocommerce(images[image], res['id'])
                 if url:
                     self.update_product_with_image(res['id'], url)
             del images
+        return self
