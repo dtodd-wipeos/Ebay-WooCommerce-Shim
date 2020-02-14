@@ -184,6 +184,17 @@ class WooCommerceShim(Database):
         data = {'images': [{'src': image_url}]}
         return self.api.put('products/%d' % (post_id), data).json()
 
+    def does_product_exist(self, item_id):
+        """
+            Determines if the product with the `item_id` has
+            already been uploaded to WooCommerce, by checking
+            for the truthyness of `post_id`
+        """
+        data = self.db_get_product_data(item_id)
+        if data.get('post_id', False):
+            return True
+        return False
+
     def create_product(self, item_id):
         """
             Pulls the product related to the `item_id`
@@ -193,7 +204,9 @@ class WooCommerceShim(Database):
         """
         self.log.debug('Creating a WooCommerce product from ebay id: %s' % (item_id))
 
-        data = self.db_get_active_product_data(item_id)
+        if self.does_product_exist:
+            self.log.warning('Product with item id %d already exists, skipping' % (item_id))
+            return self
         res = self.api.post('products', data).json()
 
         if res.get('id', False):
