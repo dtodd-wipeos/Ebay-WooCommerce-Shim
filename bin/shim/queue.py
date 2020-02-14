@@ -99,7 +99,7 @@ class ProductUploadQueue(BaseQueue):
         and a method for processing the queue in parallel
     """
 
-    def __init__(self, item_ids, workers=MAX_WORKERS, *args, **kwargs):
+    def __init__(self, item_ids=None, workers=MAX_WORKERS, *args, **kwargs):
         """
             Sets up internal information, such as the items
             to work on, and optionally how many worker threads
@@ -108,6 +108,10 @@ class ProductUploadQueue(BaseQueue):
         super(ProductUploadQueue, self).__init__(workers=workers, *args, **kwargs)
 
         self.log.info('Populating queue with ebay item ids')
+
+        if item_ids is None:
+            item_ids = WooCommerceShim().db_get_active_item_ids()
+
         for item_id in item_ids:
             self.queue.put_nowait(item_id)
 
