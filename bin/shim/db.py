@@ -145,7 +145,7 @@ class Database:
         if item.get('ConditionDescription', False):
             values['condition_description'] = item['ConditionDescription']
 
-        self.__cursor.execute(query, values)
+        self.__execute(query, values)
 
         return self
 
@@ -174,11 +174,11 @@ class Database:
         }
 
         metadata_count = len(
-            self.__cursor.execute(query_for_existing, values).fetchall()
+            self.__execute(query_for_existing, values).fetchall()
         )
 
         if metadata_count == 0:
-            self.__cursor.execute(query_to_insert, values)
+            self.__execute(query_to_insert, values)
         else:
             self.log.debug(has_metadata % (int(item_id), value))
 
@@ -244,10 +244,10 @@ class Database:
             'item_id': str(item_id),
         }
 
-        self.__cursor.execute(query, values)
+        self.__execute(query, values)
         return self.__cursor.fetchall()
 
-    def db_get_active_product_data(self, item_id):
+    def db_get_product_data(self, item_id):
         """
             For the provided `item_id`, the local database
             is searched for the matching row and extracts it
