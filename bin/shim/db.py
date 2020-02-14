@@ -63,14 +63,16 @@ class Database:
                 category_name TEXT,
                 condition_name TEXT,
                 condition_description TEXT,
-                description TEXT
+                description TEXT,
+                post_id INTEGER
             );
 
             CREATE TABLE IF NOT EXISTS item_metadata (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 itemid INTEGER,
                 key TEXT,
-                value TEXT
+                value TEXT,
+                post_id INTEGER
             );
         """)
 
@@ -305,14 +307,41 @@ class Database:
 
         return [ i['itemid'] for i in item_ids if i['itemid'] ]
 
-        self.__cursor.execute(query, {'item_id': str(item_id),})
-        the_product = self.__cursor.fetchone()
+    def __mark_data_as_uploaded(self, data_type, post_id, item_id):
+        """
+            Meta method for `db_product_uploaded` and `db_metadata_uploaded`
+            that sets the `post_id` field in the local database for the `item_id`
 
-        product = {
-            'name': the_product[2],
-            'type': 'simple',
-            'description': the_product[8],
-            'short_description': the_product[7],
+            This field is then checked before uploading the data, and
+            skipped (by default) if the data has already been uploaded
+        """
+        if data_type == 'product':
+            query = "UPDATE items SET post_id = :post_id WHERE itemid = :item_id;"
+        elif data_type == 'metadata':
+            query = "UPDATE item_metadata SET post_id = :post_id WHERE itemid = :item_id;"
+        else:
+            raise ValueError(
+                'Incorrect data_type %s. Expected "product" or "metadata"' % (data_type)
+            )
+
+        values = {
+            'post_id': post_id,
+            'item_id': item_id,
         }
 
-        return product
+        self.__execute(query, values)
+
+        return self
+
+    def db_product_uploaded(self, post_id, item_id):
+        """
+            Shortcut to mark products as uploaded by storing the post it is a part of
+        """
+        return self.__mark_data_as_uploaded('product', post_id, item_id)
+
+    def db_metadata_uploaded(self, post_id, item_id):
+        """
+            Shortcut to mark product metadata (such as images and attributes)
+            as uploaded by storing the post it is a part of
+        """
+        return self.__mark_data_as_uploaded('metadata', post_id, item_id)
