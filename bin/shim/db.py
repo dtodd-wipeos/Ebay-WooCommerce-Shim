@@ -71,6 +71,9 @@ class Database:
             );
         """)
 
+    def __get_datetime_obj(self, time_string):
+        return isodate.parse_datetime(time_string).replace(tzinfo=None)
+
     def db_store_item_from_ebay(self, item):
         """
             Store the provided `item`, which is a dictionary,
@@ -104,8 +107,8 @@ class Database:
             'available_quantity': int(item['Quantity']) - int(item['SellingStatus']['QuantitySold']),
             'title': item['Title'],
             'sku': item['SKU'],
-            'start_date': isodate.parse_datetime(item['ListingDetails']['StartTime']),
-            'end_date': isodate.parse_datetime(item['ListingDetails']['EndTime']),
+            'start_date': self.__get_datetime_obj(item['ListingDetails']['StartTime']),
+            'end_date': self.__get_datetime_obj(item['ListingDetails']['EndTime']),
             'category_id': int(item['PrimaryCategory']['CategoryID']),
             'category_name': item['PrimaryCategory']['CategoryName'],
             'condition_name': '',
