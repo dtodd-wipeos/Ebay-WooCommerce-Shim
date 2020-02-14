@@ -84,13 +84,16 @@ class Database:
             self.__execute('PRAGMA user_version')
             return self.__cursor.fetchone()[0]
 
-        if get_version() == 0:
-            query = """
+        query = ""
+
+        if get_version() < 1:
+            query += """
                 ALTER TABLE items ADD post_id INTEGER;
                 ALTER TABLE item_metadata ADD post_id INTEGER;
                 PRAGMA user_version = 1;
             """
-            self.__cursor.executescript(query)
+
+        self.__cursor.executescript(query)
 
     def __execute(self, query, values={}):
         """
