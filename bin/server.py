@@ -8,9 +8,9 @@ import sys
 import logging
 import threading
 
-from shim.ebay import EbayShim
 from shim.queue import ProductUploadQueue
 from shim.util import LOG_HANDLER
+from shim.ebay import EbayShim
 
 class Server:
     """
@@ -30,33 +30,6 @@ class Server:
         self.threads = []
         self.start()
 
-    def __start_product_upload_queue(self):
-        """
-            Provides the bare minimum for `ProductUploadQueue`
-            to function and start its own worker threads
-            (default is 1)
-        """
-        # TODO: Populate this list directly from the database
-        item_ids = [
-            124070714664,
-            124070794985,
-            124070817266,
-            124070858085,
-            124070890853,
-            124070906964,
-            124071012427,
-            124071844408,
-            124071902830,
-            124071918986,
-            124071920856,
-            124071965067,
-            124071967215,
-            124072021509,
-            124072049703,
-        ]
-
-        ProductUploadQueue(item_ids)
-
     def __start_threads(self):
         """
             Starts a server thread for each "Queue" class
@@ -64,7 +37,7 @@ class Server:
         self.log.info('Starting background threads')
 
         # Start the ProductUploadQueue
-        product_queue = threading.Thread(target=self.__start_product_upload_queue)
+        product_queue = threading.Thread(target=ProductUploadQueue)
         product_queue.start()
         self.threads.append(product_queue)
 
