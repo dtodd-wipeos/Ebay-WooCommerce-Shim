@@ -82,16 +82,26 @@ class Database:
             when the database is initalized
         """
         def get_version():
+            """
+                Returns the current Schema
+            """
             self.__execute('PRAGMA user_version')
             return self.__cursor.fetchone()[0]
 
         def increment_version():
-            current_version = get_version()
-            return "PRAGMA user_version = {v:d};".format(v=current_version + 1)
+            """
+                Increases the current Schema by 1
+            """
+            return "PRAGMA user_version = {v:d};".format(v=get_version() + 1)
 
         query = ""
 
         if get_version() < 1:
+            """
+                Track the post that is associated with the data;
+                used to determine if we've uploaded the product
+                (returns None if not)
+            """
             query += """
                 ALTER TABLE items ADD post_id INTEGER;
                 ALTER TABLE item_metadata ADD post_id INTEGER;
@@ -99,6 +109,18 @@ class Database:
             query += increment_version()
 
         if get_version() < 2:
+            """
+                Track a couple internal state values to the ebay module
+
+                `requests_today` is compared against when calling
+                the ebay API and will stop the program if we reach
+                `EbayShim().metadata_rate_limit`
+
+                `got_item_ids` is a list of Item IDs that will be used
+                to get ItemSpecific information for each item in the list.
+                This is filled when the program reaches the rate limit so
+                that it can continue where it left off the next day
+            """
             query += """
                 CREATE TABLE IF NOT EXISTS ebay_internals (
                     key CHAR PRIMARY KEY NOT NULL UNIQUE,
