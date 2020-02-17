@@ -50,13 +50,15 @@ class EbayShim(Database):
         # seller events searching (defined at `set_range_filter`)
         self.seller_filter_dict = {}
         # Contains all item ids that are currently active (defined at `get_item_ids`)
-        self.got_item_ids = []
+        self.got_item_ids = self.db_ebay_get_got_item_ids()
 
         # Used to determine how many times a paginated request
         # needs to be repeated to get the full data set
         self.pagination_total_items = 0
         self.pagination_total_pages = 0
         self.pagination_received_items = 0
+
+        self.metadata_rate_limit = 200
 
         # Setup connection to SDK
         self.ebay = self.__get_api_connection()
@@ -249,6 +251,14 @@ class EbayShim(Database):
 
         if self.got_item_ids:
             for item_id in self.got_item_ids:
+                # Remove the current item so that we can store the state
+                self.got_item_ids.remove(item_id)
+
+                if self.db_ebay_get_request_counter() >= self.metadata_rate_limit:
+                    self.log.error('Rate limit reached! Storing the remaining ids for next run')
+                    self.db_ebay_store_got_item_ids(self.got_item_ids)
+                    break
+
                 # Get the item, with specifc details (specs)
                 # Arguments are defined here:
                 # https://developer.ebay.com/Devzone/XML/docs/Reference/eBay/GetItem.html#Request.IncludeItemSpecifics
@@ -260,7 +270,11 @@ class EbayShim(Database):
                     }
                 ).dict()['Item']
 
+                self.db_ebay_increment_request_counter()
                 self.db_store_item_metadata_from_ebay(result)
+
+        if self.got_item_ids:
+            self.db_ebay_store_got_item_ids([])
 
         return self
 

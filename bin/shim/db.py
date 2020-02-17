@@ -5,6 +5,7 @@
 
 import os
 import sys
+import json
 import sqlite3
 import logging
 
@@ -84,14 +85,33 @@ class Database:
             self.__execute('PRAGMA user_version')
             return self.__cursor.fetchone()[0]
 
+        def increment_version():
+            current_version = get_version()
+            return "PRAGMA user_version = {v:d};".format(v=current_version + 1)
+
         query = ""
 
         if get_version() < 1:
             query += """
                 ALTER TABLE items ADD post_id INTEGER;
                 ALTER TABLE item_metadata ADD post_id INTEGER;
-                PRAGMA user_version = 1;
             """
+            query += increment_version()
+
+        if get_version() < 2:
+            query += """
+                CREATE TABLE IF NOT EXISTS ebay_internals (
+                    key CHAR PRIMARY KEY NOT NULL UNIQUE,
+                    value TEXT NOT NULL
+                );
+                INSERT INTO ebay_internals
+                    (key, value)
+                VALUES ('requests_today', 0);
+                INSERT INTO ebay_internals
+                    (key, value)
+                VALUES ('got_item_ids', '[]');
+            """
+            query += increment_version()
 
         self.__cursor.executescript(query)
 
@@ -364,3 +384,26 @@ class Database:
             as uploaded by storing the post it is a part of
         """
         return self.__mark_data_as_uploaded('metadata', post_id, item_id)
+
+    def db_ebay_get_request_counter(self):
+        query = "SELECT value FROM ebay_internals where key = 'requests_today'"
+        self.__execute(query)
+        return int(dict(self.__cursor.fetchone()).get('value', 0))
+
+    def db_ebay_increment_request_counter(self):
+        requests = self.db_ebay_get_request_counter()
+        query = "UPDATE ebay_internals SET value = :requests WHERE key = 'requests_today'"
+        self.__execute(query, {'requests': requests + 1,})
+    
+    def db_ebay_zero_request_counter(self):
+        query = "UPDATE ebay_internals SET value = 0 WHERE key = 'requests_today'"
+        self.__execute(query)
+
+    def db_ebay_store_got_item_ids(self, item_ids):
+        query = "UPDATE ebay_internals SET value = :items WHERE key = 'got_item_ids'"
+        self.__execute(query, {'items': json.dumps(item_ids),})
+
+    def db_ebay_get_got_item_ids(self):
+        query = "SELECT value FROM ebay_internals WHERE key = 'got_item_ids'"
+        self.__execute(query)
+        return json.loads(dict(self.__cursor.fetchone()).get('value', '[]'))
