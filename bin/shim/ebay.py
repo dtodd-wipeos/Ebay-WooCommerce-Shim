@@ -58,7 +58,7 @@ class EbayShim(Database):
         self.pagination_total_pages = 0
         self.pagination_received_items = 0
 
-        self.metadata_rate_limit = 100
+        self.metadata_rate_limit = 1000
 
         # Setup connection to SDK
         self.ebay = self.__get_api_connection()
