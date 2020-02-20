@@ -10,6 +10,7 @@ import logging
 import threading
 
 from .woo import WooCommerceShim
+from .ebay import EbayShim
 from .util import LOG_HANDLER
 
 # I've had a hell of a time making the Queue
@@ -136,5 +137,52 @@ class ProductUploadQueue(BaseQueue):
                 break
 
             api.create_product(item_id)
+
+            self.queue.task_done()
+
+class EbayDownloadQueue(BaseQueue):
+    """
+        Provides a queue for pulling products from ebay
+        and a method for processing the queue in parallel
+    """
+
+    def __init__(self, workers=MAX_WORKERS, *args, **kwargs):
+        """
+            Sets up internal information, such as the items
+            to work on, and optionally how many worker threads
+            to have (default of 1)
+        """
+        super(EbayDownloadQueue, self).__init__(workers=workers, *args, **kwargs)
+
+        self.queue.put('get_seller_list')
+        self.queue.put('get_item_metadata')
+
+        self.start()
+
+    def worker(self):
+        """
+            Creates an API connection to the database
+            and runs the method to download products from
+            ebay, and download the product metadata from ebay
+
+            This method will run in a seperate (non-blocking)
+            thread until the queue gives a `None` object,
+            signifying that it is empty
+
+            Ultimately, this will just be a single thread that
+            will first run `get_seller_list`, and then `get_item_metadata`
+        """
+
+        api = EbayShim()
+
+        self.log.info('Setting date range filter to today and ending at 35 days in the future')
+        api.set_date_range(start_date='', days=35, range_type='End').set_range_filter()
+
+        while True:
+            command = self.queue.get()
+            if command is None:
+                break
+
+            api.try_command(command)
 
             self.queue.task_done()

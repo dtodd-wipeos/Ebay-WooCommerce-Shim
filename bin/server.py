@@ -8,9 +8,8 @@ import sys
 import logging
 import threading
 
-from shim.queue import ProductUploadQueue
+from shim.queue import ProductUploadQueue, EbayDownloadQueue
 from shim.util import LOG_HANDLER
-from shim.ebay import EbayShim
 
 class Server:
     """
@@ -36,12 +35,15 @@ class Server:
         """
         self.log.info('Starting background threads')
 
+        # Start the EbayDownloadQueue
+        ebay_queue = threading.Thread(target=EbayDownloadQueue)
+        ebay_queue.start()
+        self.threads.append(ebay_queue)
+
         # Start the ProductUploadQueue
         product_queue = threading.Thread(target=ProductUploadQueue)
         product_queue.start()
         self.threads.append(product_queue)
-
-        # TODO: Add the ebay download queue here
 
     def __finish_threads(self):
         """
@@ -73,8 +75,3 @@ class Server:
 
 if __name__ == '__main__':
     Server()
-
-    # Store all items that started within this date range
-    # ebay_shim.set_date_range(start_date='2020-02-01', days=1).set_range_filter()
-    # This will also store metadata for items that are still active
-    # ebay_shim.try_command('get_seller_list')
