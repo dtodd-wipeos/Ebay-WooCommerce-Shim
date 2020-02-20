@@ -81,3 +81,24 @@ The fields to set in the `creds.example` file are `wordpress_user` and `wordpres
     * Subsequent launches can be accomplished with `./run-container.sh`, which won't spend the time to build
 
 The container is hardcoded to use the production credentials. Alter `CMD` line of the Dockerfile to change that to `sandbox` if you wish and rebuild.
+
+## Configuration
+
+There are a couple of files that are required to make this system work. These files are:
+* `credentials/creds.production` - Production credentials. Also contains general variables such as locations of other needed files
+* `database/ebay-to-woo-commerce-category-map.json` (or whatever is defined in `creds.production`) - This is a mapping of all categories from ebay listings to all that are configured in WooCommerce
+* `database/ebay_items.db` (or whatever is defined in `creds.production`) - This is the local database that will contain all items, their metadata (picture URLs, and Item Specifics), and various internals for the application to recover if it crashes or hits rate limits
+
+### Category Mapping
+
+This is optional if you are fine with having all your products appear as "uncategorized". If you would prefer to have a mapping, get ready for some data entry.
+
+First, get all categories from Woo-Commerce ([documented here](http://woocommerce.github.io/woocommerce-rest-api-docs/#list-all-product-categories)). You will need to request incrementing pages until you get nothing returned. The fields that are important are "id" and "name"; Name is only used so that you can identify the category in the future.
+
+Once you have those fields, throw them into the mapping json file with `id` being changed to `wc-id`, and `name` being changed to `wc-name`.
+Under every `wc-id` key, include a new key called `ebay_ids`, which contains a list (or array in JSON speak)
+
+Now to fetch the categories that are in use. What I've done is fetch all products using `GetSellerList` and then issued a SQL query similar to the following:
+`SELECT DISTINCT category_name, category_id from items where active = 'Active';` on the `ebay_items.db` database. 
+
+Finally, populate the lists for the categories with ids that are close enough in terms of the category description
