@@ -93,6 +93,8 @@ There are a couple of files that are required to make this system work. These fi
 
 This is optional if you are fine with having all your products appear as "uncategorized". If you would prefer to have a mapping, get ready for some data entry.
 
+If you do decide to do a category mapping, at the minimum, you must have a category called "Uncategorized" and have the wc-id and wc-name for that in the JSON file.
+
 First, get all categories from Woo-Commerce ([documented here](http://woocommerce.github.io/woocommerce-rest-api-docs/#list-all-product-categories)). You will need to request incrementing pages until you get nothing returned. The fields that are important are "id" and "name"; Name is only used so that you can identify the category in the future.
 
 Once you have those fields, throw them into the mapping json file with `id` being changed to `wc-id`, and `name` being changed to `wc-name`.
