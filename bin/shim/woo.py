@@ -5,6 +5,7 @@
 
 import os
 import sys
+import json
 import time
 import logging
 import requests
@@ -50,6 +51,14 @@ class WooCommerceShim(Database):
             consumer_key=False,
             consumer_secret=False
         )
+
+        mapping_path = os.environ.get('category_mapping',
+                                      'database/ebay-to-woo-commerce-category-map.json')
+        try:
+            with open(mapping_path, 'r') as mapping_file:
+                self.category_mapping = json.load(mapping_file)
+        except IOError:
+            self.category_mapping = None
 
     def __does_image_exist_on_woocommerce(self, slug):
         """
@@ -199,6 +208,39 @@ class WooCommerceShim(Database):
             return True
         return False
 
+    def __search_map(self, value, field):
+        """
+            Uses List Comprehension to search for the `value` in the `field`.
+
+            Normal usage would be similar to `self.__search_map(ebay_category_id, 'ebay_ids')`
+
+            Returns an integer, which is the first matching Woo Commerce ID for
+            the selected `value` (in the case that one ebay category is mapped to
+            multiple woo commerce categories)
+
+            When a matching category can't be found, this method will call itself
+            to search for the "Uncategorized" `value` on the "wc-name" `field`
+        """
+        try:
+            mapped = [key for key in self.category_mapping if value in key[field]]
+            return int(mapped[0]['wc-id'])
+        except IndexError: # Couldn't find it, return the uncategorized id
+            return self.__search_map('Uncategorized', 'wc-name')
+
+    def get_mapped_category_id(self, ebay_category_id):
+        """
+            Determines if the user provided a category mapping, and if so
+            returns an integer, which is the Woo Commerce category id that
+            is mapped to the `ebay_category_id` (or the Uncategorized category
+            id if a mapping can not be found)
+
+            In the case that the user has not provided a category mapping,
+            this method returns None
+        """
+        if self.category_mapping is not None:
+            return self.__search_map(ebay_category_id, 'ebay_ids')
+        return None
+
     def create_product(self, item_id):
         """
             Pulls the product related to the `item_id`
@@ -208,15 +250,25 @@ class WooCommerceShim(Database):
         """
         self.log.debug('Creating a WooCommerce product from ebay id: %s' % (item_id))
 
-        if self.does_product_exist:
+        if self.does_product_exist(item_id):
             self.log.warning('Product with item id %d already exists, skipping' % (item_id))
             return self
 
         data = self.db_get_product_data(item_id)
 
-        # TODO: Format the data as it is expected on the API
+        upload_data = {
+            'name': data['title'],
+            'type': 'simple',
+            'short_description': data['condition_description'],
+            'sku': data['sku'],
+        }
 
-        res = self.api.post('products', data).json()
+        # Add the category id
+        category_id = self.get_mapped_category_id(item_id)
+        if category_id is not None:
+            upload_data['categories'] = [{ 'id': category_id }]
+
+        res = self.api.post('products', upload_data).json()
 
         if res.get('id', False):
             self.db_product_uploaded(item_id, res['id'])
