@@ -6,6 +6,7 @@
 import os
 import sys
 import json
+import time
 import sqlite3
 import logging
 
@@ -277,11 +278,24 @@ class Database:
         # ItemSpecifics only exists on GetItem when `IncludeItemSpecifics` is True
         if item.get('ItemSpecifics', False):
             self.log.debug('Found Specific Details for %d' % (int(item['ItemID'])))
-            for detail in item['ItemSpecifics']['NameValueList']:
-                if type(detail['Value']) is list:
-                    detail['Value'] = ', '.join(detail['Value'])
+            if type(item['ItemSpecifics']['NameValueList']) is list:
+                for detail in item['ItemSpecifics']['NameValueList']:
+                    if type(detail['Value']) is list:
+                        detail['Value'] = ', '.join(detail['Value'])
 
-                self.__store_key_value(item['ItemID'], detail['Name'], detail['Value'])
+                    self.__store_key_value(item['ItemID'], detail['Name'], detail['Value'])
+            
+            elif type(item['ItemSpecifics']['NameValueList']) is dict:
+                values = item['ItemSpecifics']['NameValueList']
+
+                if type(values['Value']) is list:
+                    detail['Value'] = ', '.join(detail['Value'])
+                
+                self.__store_key_value(item['ItemID'], values['Name'], values['Value'])
+
+            else:
+                err_msg = 'Unexpected type %s from ItemSpecifics. Expecting either list or str'
+                self.log.error(err_msg % (type(item['ItemSpecifics']['NameValueList'])))
 
         return self
 
