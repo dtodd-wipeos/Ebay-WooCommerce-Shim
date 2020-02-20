@@ -442,4 +442,9 @@ class Database:
     def db_ebay_get_got_item_ids(self):
         query = "SELECT value FROM ebay_internals WHERE key = 'got_item_ids'"
         self.__execute(query)
-        return json.loads(dict(self.__cursor.fetchone()).get('value', '[]'))
+        ids = json.loads(dict(self.__cursor.fetchone()).get('value', '[]'))
+
+        if not ids:
+            self.log.warning('No continue point, getting all active items')
+            return self.db_get_active_item_ids()
+        return ids
