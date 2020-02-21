@@ -491,7 +491,7 @@ class Database:
             we don't make so many API requests to ebay
             that we hit the rate limit (5000 requests/day)
 
-            returns None
+            Returns None
         """
         query = "UPDATE ebay_internals SET value = 0 WHERE key = 'requests_today'"
         self.__execute(query)
@@ -501,7 +501,7 @@ class Database:
             Used to save the current state of the program
             whenever we hit a rate limit
 
-            returns None
+            Returns None
         """
         query = "UPDATE ebay_internals SET value = :items WHERE key = 'got_item_ids'"
         self.__execute(query, {'items': json.dumps(item_ids),})
