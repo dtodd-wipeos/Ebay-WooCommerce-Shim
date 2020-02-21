@@ -273,7 +273,19 @@ class WooCommerceShim(Database):
 
         return self
 
-    def manage_image_for_product(self, item_id):
+    def delete_product(self, item_id):
+        pass
+
+    def upload_product_images(self, item_id):
+        """
+            With the provided `item_id`, the database
+            is searched for the post id (set during
+            `create_product`)
+
+            When the post_id is found, it will be used
+            to download the images for that product
+            from ebay, and then upload the images
+        """
         post_id = self.db_woo_get_post_id(item_id)
         gallery = []
 
@@ -292,3 +304,45 @@ class WooCommerceShim(Database):
             self.log.warning('The product %d has not yet been uploaded' % (item_id))
 
         return self
+
+    def try_command(self, command, item_id):
+        """
+            Wrapper for running methods.
+
+            Verifies that we support the method, raising a NameError if not
+            and then runs the method specified in the `command` argument in
+            a try, except statement
+
+            `command` is a string that is inside `__available_commands`
+        """
+        __available_commands = [
+            'create_product',
+            'delete_product',
+            'upload_images',
+        ]
+
+        err_msg = "Command %s is unrecognized. Supported commands are: %s" % (
+            command, ', '.join(__available_commands))
+
+        if command not in __available_commands:
+            self.log.exception(err_msg)
+            raise NameError(err_msg)
+
+        try:
+            if command == 'create_product':
+                self.create_product(item_id)
+
+            elif command == 'delete_product':
+                self.delete_product(item_id)
+
+            elif command == 'upload_images':
+                self.upload_product_images(item_id)
+
+            else:
+                self.log.exception(err_msg)
+                raise NameError(err_msg)
+
+        except requests.exceptions.ConnectTimeout:
+            self.log.exception('The Previous request Timed Out. Waiting 5s before retrying')
+            time.sleep(5)
+            self.try_command(command, item_id)

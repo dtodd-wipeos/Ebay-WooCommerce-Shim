@@ -393,7 +393,7 @@ class EbayShim(Database):
                 while self.pagination_received_items < self.pagination_total_items:
                     self.get_seller_list().__print_response()
 
-            if command == 'get_item_metadata':
+            elif command == 'get_item_metadata':
                 self.get_item_metadata()
 
             else:
