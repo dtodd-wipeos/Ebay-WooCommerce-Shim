@@ -22,8 +22,6 @@ class WooCommerceShim(Database):
         the WooCommerce API. These methods will do things
         such as adding new products, and removing sold
         products.
-
-        TODO: Multi-threading.
     """
 
     def __init__(self, *args, **kwargs):
