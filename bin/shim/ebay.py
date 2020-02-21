@@ -56,7 +56,7 @@ class EbayShim(Database):
         self.pagination_total_pages = 0
         self.pagination_received_items = 0
 
-        self.metadata_rate_limit = 1000
+        self.rate_limit = 1000
 
         # Setup connection to SDK
         self.ebay = self.__get_api_connection()
@@ -249,7 +249,7 @@ class EbayShim(Database):
                 # Remove the current item so that we can store the state
                 self.got_item_ids.remove(item_id)
 
-                if self.db_ebay_get_request_counter() >= self.metadata_rate_limit:
+                if self.db_ebay_get_request_counter() >= self.rate_limit:
                     self.log.error('Rate limit reached! Storing the remaining ids for next run')
                     self.db_ebay_store_got_item_ids(self.got_item_ids)
                     break
@@ -286,8 +286,18 @@ class EbayShim(Database):
         # Call `__get_seller_list` sequentially to move to the next page
         self.__update_pagination()
 
+        if self.db_ebay_get_request_counter() >= self.rate_limit:
+            self.log.error('Rate limit reached! Not getting more items!')
+            # Introduce a fake value to the pagination to
+            # trick `try_command` to break out of the loop
+            self.pagination_received_items = self.pagination_total_items + 1
+            return None
+
         # Run the API request
         result = self.ebay.execute('GetSellerList', self.seller_filter_dict).dict()
+
+        # Record that we sent a request to the ebay API
+        self.db_ebay_increment_request_counter()
 
         # Determine where we are for pagination
         self.pagination_total_items = int(result['PaginationResult']['TotalNumberOfEntries'])
