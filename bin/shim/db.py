@@ -144,8 +144,9 @@ class Database:
                 avoid un-necessary calls
             """
             query += """
-                INSERT into ebay_internals (key)
-                VALUES ('got_seller_list_date');
+                INSERT into ebay_internals
+                    (key, value)
+                VALUES ('got_seller_list_date', 'no');
             """
             query += increment_version()
 
@@ -473,14 +474,14 @@ class Database:
         """
         query = "SELECT value FROM ebay_internals WHERE key = 'got_seller_list_date'"
         self.__execute(query)
-        last_date = dict(self.__cursor.fetchone()).get('value', None)
+        last_date = dict(self.__cursor.fetchone()).get('value', 'no')
 
-        if last_date is not None and isodate.parse_date(last_date) >= datetime.date.today():
+        if last_date != 'no' and isodate.parse_date(last_date) >= datetime.date.today():
             msg = 'We already ran get_seller_list today (or in the future). Wait until tomorrow'
             self.log.warning(msg)
             return False
 
-        if last_date is None or isodate.parse_date(last_date) < datetime.date.today():
+        if last_date == 'no' or isodate.parse_date(last_date) < datetime.date.today():
             query = "UPDATE ebay_internals SET value = :isodate WHERE key = 'got_seller_list_date'"
             today = isodate.date_isoformat(datetime.date.today())
             self.__execute(query, {'isodate': today})
