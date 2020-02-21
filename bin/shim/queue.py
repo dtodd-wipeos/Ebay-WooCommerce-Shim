@@ -155,7 +155,7 @@ class EbayDownloadQueue(BaseQueue):
         super(EbayDownloadQueue, self).__init__(workers=workers, *args, **kwargs)
 
         self.queue.put('get_seller_list')
-        self.queue.put('get_item_metadata')
+        # self.queue.put('get_item_metadata')
 
         self.start()
 
