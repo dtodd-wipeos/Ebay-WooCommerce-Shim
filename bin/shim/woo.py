@@ -19,6 +19,11 @@ from .util import LOG_HANDLER
 from woocommerce import API as WCAPI
 from wordpress import API as WPAPI
 
+DEFAULT_DESCRIPTION = """
+<strong style="align-text:center;font-size:21px;">Request the price</strong>
+[wpforms id="5280"]
+"""
+
 class WooCommerceShim(Database):
     """
         Contains various methods for interacting with
@@ -309,6 +314,7 @@ class WooCommerceShim(Database):
             'name': data['title'],
             'type': 'simple',
             'short_description': data['condition_description'],
+            'description': DEFAULT_DESCRIPTION,
             'sku': data['sku'],
         }
 
@@ -324,8 +330,33 @@ class WooCommerceShim(Database):
 
         return self
 
-    def delete_product(self, item_id):
+    def delete_product_images(self, post_id):
         pass
+
+    def delete_product(self, item_id):
+        """
+            With the provided `item_id`, an API request will
+            be made to WooCommerce to force delete the item
+
+            The `item_id` is supplied by the queue, which gets
+            them from `db.db_get_inactive_uploaded_item_ids()`
+
+            When an item is force deleted, it will not appear
+            in the "Trash"
+
+            Returns the response as a dictionary or None if
+            there is no post id
+        """
+        post_id = self.db_woo_get_post_id(item_id)
+        if post_id is not None:
+            self.log.info('Deleting %d from WooCommerce' % (item_id))
+            response = self.api.delete('products/%d' % (post_id), params={'force': True}).json()
+
+            self.delete_product_images(post_id)
+
+            self.log.debug(response)
+            return response
+        return None
 
     def delete_all_products_in_range(self, id_range):
         """
@@ -351,6 +382,9 @@ class WooCommerceShim(Database):
             }
             self.api.post('products/batch', data)
             self.log.info('Deleted ids %s' % (post_ids))
+
+            for post_id in post_ids:
+                self.delete_product_images(post_id)
 
 
     def try_command(self, command, data):
