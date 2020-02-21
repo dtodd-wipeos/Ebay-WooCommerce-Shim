@@ -9,6 +9,7 @@ import json
 import time
 import sqlite3
 import logging
+import datetime
 
 from .util import LOG_HANDLER
 
@@ -133,6 +134,18 @@ class Database:
                 INSERT INTO ebay_internals
                     (key, value)
                 VALUES ('got_item_ids', '[]');
+            """
+            query += increment_version()
+
+        if get_version() < 3:
+            """
+                Add more state internals, such as determining if we've
+                already gotten the seller list today so that we can
+                avoid un-necessary calls
+            """
+            query += """
+                INSERT into ebay_internals (key)
+                VALUES ('got_seller_list_date');
             """
             query += increment_version()
 
@@ -448,3 +461,28 @@ class Database:
             self.log.warning('No continue point, getting all active items')
             return self.db_get_active_item_ids()
         return ids
+
+    def db_ebay_got_seller_list_date(self):
+        """
+            Provides a method for preventing the `get_seller_list` command
+            from being ran multiple times a day
+
+            Returns True when there is either no date, or the date was in
+            the past. Returns False when there is a date that is today or
+            in the future
+        """
+        query = "SELECT value FROM ebay_internals WHERE key = 'got_seller_list_date'"
+        self.__execute(query)
+        last_date = dict(self.__cursor.fetchone()).get('value', None)
+
+        if last_date is not None and isodate.parse_date(last_date) >= datetime.date.today():
+            msg = 'We already ran get_seller_list today (or in the future). Wait until tomorrow'
+            self.log.warning(msg)
+            return False
+
+        if last_date is None or isodate.parse_date(last_date) < datetime.date.today():
+            query = "UPDATE ebay_internals SET value = :isodate WHERE key = 'got_seller_list_date'"
+            today = isodate.date_isoformat(datetime.date.today())
+            self.__execute(query, {'isodate': today})
+
+        return True

@@ -25,8 +25,6 @@ class EbayShim(Database):
         Contains various methods for querying the ebay API
         that will get items that are currently active,
         categories, descriptions, etc
-
-        TODO: Multi-threading.
     """
 
     def __init__(self, *args, **kwargs):
@@ -241,9 +239,6 @@ class EbayShim(Database):
 
             If `self.got_item_ids` does not contain at least one item,
             it will be populated with all items that are marked as active
-
-            TODO: Throttle this so we don't hit our daily limit of 5k
-            API calls
         """
 
         if not self.got_item_ids:
@@ -389,7 +384,7 @@ class EbayShim(Database):
             raise NameError(err_msg)
 
         try:
-            if command == 'get_seller_list':
+            if command == 'get_seller_list' and self.db_ebay_got_seller_list_date():
                 # We need to run this at least once to populate
                 # `self.pagination_total_items` and `self.pagination_received_items`
                 self.get_seller_list().__print_response()
@@ -413,5 +408,8 @@ class EbayShim(Database):
             self.log.exception('The Previous request Timed Out. Waiting 5s before retrying')
             time.sleep(5)
             self.try_command(command)
+
+        except NameError:
+            pass
 
         return self
