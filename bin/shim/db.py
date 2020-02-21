@@ -564,3 +564,16 @@ class Database:
         self.__execute(query, {'item_id': item_id})
 
         return self.__fetchone('post_id')
+
+    def db_get_inactive_item_ids(self):
+        query = """
+            SELECT itemid FROM items
+            WHERE
+                active != 'Active' or
+                end_date <= date('now')
+        """
+        self.__execute(query)
+        res = self.__fetchall()
+
+        self.log.debug(res)
+        return res
