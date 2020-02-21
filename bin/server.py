@@ -8,7 +8,12 @@ import sys
 import logging
 import threading
 
-from shim.queue import EbayDownloadQueue, ProductUploadQueue, ProductImageQueue
+from shim.queue import (
+    EbayDownloadQueue,
+    ProductUploadQueue,
+    ProductDeletionQueue,
+    ProductImageQueue
+)
 from shim.util import LOG_HANDLER
 
 class Server:
@@ -41,9 +46,14 @@ class Server:
         self.threads.append(ebay_queue)
 
         # Start the ProductUploadQueue
-        product_queue = threading.Thread(target=ProductUploadQueue)
-        product_queue.start()
-        self.threads.append(product_queue)
+        product_upload_queue = threading.Thread(target=ProductUploadQueue)
+        product_upload_queue.start()
+        self.threads.append(product_upload_queue)
+
+        # Start the ProductDeletionQueue
+        product_delete_queue = threading.Thread(target=ProductDeletionQueue)
+        product_delete_queue.start()
+        self.threads.append(product_delete_queue)
 
         # Start the ProductImageQueue
         product_image_queue = threading.Thread(target=ProductImageQueue)

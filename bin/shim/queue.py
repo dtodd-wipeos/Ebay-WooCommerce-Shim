@@ -135,7 +135,52 @@ class ProductUploadQueue(BaseQueue):
             if item_id is None:
                 break
 
-            api.create_product(item_id)
+            api.try_command('create_product', item_id)
+
+            self.queue.task_done()
+
+class ProductDeletionQueue(BaseQueue):
+    """
+        Provides a queue for removing products from WooCommerce
+        and a method for processing the queue in parallel
+    """
+
+    def __init__(self, item_ids=None, workers=MAX_WORKERS, *args, **kwargs):
+        """
+            Sets up internal information, such as the items
+            to work on, and optionally how many worker threads
+            to have (default of 1)
+        """
+        super(ProductDeletionQueue, self).__init__(workers=workers, *args, **kwargs)
+
+        self.log.info('Populating queue with ebay item ids')
+
+        if item_ids is None:
+            item_ids = WooCommerceShim().db_get_inactive_item_ids()
+
+        for item_id in item_ids:
+            self.queue.put_nowait(item_id)
+
+        self.start()
+
+    def worker(self):
+        """
+            Creates an API connection to the database
+            and runs the method to delete the product
+            from woocommerce
+
+            This method will run in a seperate (non-blocking)
+            thread until the queue gives a `None` object,
+            signifying that it is empty
+        """
+        api = WooCommerceShim()
+
+        while True:
+            item_id = self.queue.get()
+            if item_id is None:
+                break
+
+            api.try_command('delete_product', item_id)
 
             self.queue.task_done()
 
@@ -172,7 +217,7 @@ class ProductImageQueue(BaseQueue):
             if item_id is None:
                 break
 
-            api.manage_image_for_product(item_id)
+            api.try_command('upload_image', item_id)
 
             self.queue.task_done()
 
