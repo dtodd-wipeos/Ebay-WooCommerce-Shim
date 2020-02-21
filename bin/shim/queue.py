@@ -113,6 +113,8 @@ class ProductUploadQueue(BaseQueue):
         if item_ids is None:
             item_ids = WooCommerceShim().db_get_active_item_ids()
 
+        item_ids = item_ids[0:20]
+
         for item_id in item_ids:
             self.queue.put_nowait(item_id)
 
@@ -156,7 +158,7 @@ class ProductDeletionQueue(BaseQueue):
         self.log.info('Populating queue with ebay item ids')
 
         if item_ids is None:
-            item_ids = WooCommerceShim().db_get_inactive_item_ids()
+            item_ids = WooCommerceShim().db_get_inactive_uploaded_item_ids()
 
         for item_id in item_ids:
             self.queue.put_nowait(item_id)
@@ -186,7 +188,7 @@ class ProductDeletionQueue(BaseQueue):
 
 class ProductImageQueue(BaseQueue):
 
-    def __init__(self, workers=MAX_WORKERS, *args, **kwargs):
+    def __init__(self, item_ids=None, workers=MAX_WORKERS, *args, **kwargs):
         super(ProductImageQueue, self).__init__(workers=MAX_WORKERS, *args, **kwargs)
 
         self.log.info('Populating queue with ebay item ids')
@@ -217,7 +219,7 @@ class ProductImageQueue(BaseQueue):
             if item_id is None:
                 break
 
-            api.try_command('upload_image', item_id)
+            api.try_command('upload_images', item_id)
 
             self.queue.task_done()
 
