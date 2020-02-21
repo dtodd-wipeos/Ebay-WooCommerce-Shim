@@ -84,7 +84,7 @@ class WooCommerceShim(Database):
             which is populated when `self.__get_item_metadata()` runs
         """
 
-        images = {}
+        downloaded_images = {}
         count = 0
 
         images = self.db_get_product_image_urls(item_id)
@@ -109,7 +109,7 @@ class WooCommerceShim(Database):
                     extension = mime_type.split('/')[1]
                     filename = '%s.%s' % (slug, extension)
 
-                    images[filename] = {
+                    downloaded_images[filename] = {
                         'slug': slug,
                         'name': filename,
                         'type': mime_type,
@@ -130,7 +130,7 @@ class WooCommerceShim(Database):
         else:
             self.log.warning("No Image URLs found for item: %s" % (item_id))
 
-        return images
+        return downloaded_images
 
     def upload_image_to_woocommerce(self, image, post_id):
         """
