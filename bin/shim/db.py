@@ -411,7 +411,7 @@ class Database:
             Returns a list containing all the item ids
         """
         self.log.debug('Getting all active IDs')
-        query = "SELECT itemid FROM items WHERE active = 'Active';"
+        query = "SELECT itemid FROM items WHERE active = 'Active' AND post_id IS NULL;"
 
         self.__execute(query)
         item_ids = self.__cursor.fetchall()
@@ -565,15 +565,14 @@ class Database:
 
         return self.__fetchone('post_id')
 
-    def db_get_inactive_item_ids(self):
+    def db_get_inactive_uploaded_item_ids(self):
         query = """
             SELECT itemid FROM items
             WHERE
-                active != 'Active' or
+                post_id is not NULL AND
+                active != 'Active' OR
                 end_date <= date('now')
         """
         self.__execute(query)
-        res = self.__fetchall()
-
-        self.log.debug(res)
-        return res
+        item_ids = self.__fetchall()
+        return [ i['itemid'] for i in item_ids if i['itemid'] ]
