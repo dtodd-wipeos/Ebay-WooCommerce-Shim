@@ -40,25 +40,23 @@ class Server:
         """
         self.log.info('Starting background threads')
 
-        # Start the EbayDownloadQueue
         ebay_queue = threading.Thread(target=EbayDownloadQueue)
-        ebay_queue.start()
         self.threads.append(ebay_queue)
 
-        # Start the ProductUploadQueue
         product_upload_queue = threading.Thread(target=ProductUploadQueue)
-        product_upload_queue.start()
         self.threads.append(product_upload_queue)
 
-        # Start the ProductDeletionQueue
         product_delete_queue = threading.Thread(target=ProductDeletionQueue)
-        product_delete_queue.start()
         self.threads.append(product_delete_queue)
 
-        # Start the ProductImageQueue
         product_image_queue = threading.Thread(target=ProductImageQueue)
-        product_image_queue.start()
         self.threads.append(product_image_queue)
+
+        # Actually start the threads
+        ebay_queue.start()
+        product_upload_queue.start()
+        product_delete_queue.start()
+        product_image_queue.start()
 
     def __finish_threads(self):
         """
