@@ -104,3 +104,12 @@ Now to fetch the categories that are in use. What I've done is fetch all product
 `SELECT DISTINCT category_name, category_id from items where active = 'Active';` on the `ebay_items.db` database. 
 
 Finally, populate the lists for the categories with ids that are close enough in terms of the category description
+
+## Known Bugs and Issues
+
+Even though I was working on this on an off for a couple months, with about a month dedicated to the program, it's still got some issues.
+
+1. Uploaded images are duplicating on the site - This isn't a huge issue immediately, but it does mean that we'll be consuming double the storage space
+1. The Threading is behaving weirdly when starting the various queues - They seem to be waiting sequentially. This could be due to the fact that a Queue will block its parent thread until its child threads have been finished.
+1. We're not uploading product attributes (ItemSpecifics) due to the fact that they have to be mapped - Due to this, we are not even pulling the attributes
+1. There is currently no way to delete a product once it is marked as either completed or the end date has been reached on ebay
