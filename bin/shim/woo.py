@@ -10,6 +10,9 @@ import time
 import logging
 import requests
 
+from socket import timeout
+from urllib3.exceptions import ReadTimeoutError
+
 from .db import Database
 from .util import LOG_HANDLER
 
@@ -73,6 +76,69 @@ class WooCommerceShim(Database):
         if len(result) == 0:
             return False
         return True
+
+    def __divide_into_chunks(self, iterable, chunk_size=100):
+        """
+            Used to make bulk requests via the API, which limits
+            the amount of products to change at once to 100
+
+            `iterable` is something that can be iterated over, be
+            it a list or a range. When a range, you must wrap the
+            output of this method in `list()`
+
+            `chunk_size` is optional, and defines how many products
+            to change per request. The default of 100 is the maximum
+            that the API will allow
+
+            Returns the `iterable` containing as many items as are
+            in the `chunk_size`
+        """
+        for i in range(0, len(iterable), chunk_size):
+            yield iterable[i:i + chunk_size]
+
+    def __search_map(self, value, field):
+        """
+            Uses List Comprehension to search for the `value` in the `field`.
+
+            Normal usage would be similar to `self.__search_map(ebay_category_id, 'ebay_ids')`
+
+            Returns an integer, which is the first matching Woo Commerce ID for
+            the selected `value` (in the case that one ebay category is mapped to
+            multiple woo commerce categories)
+
+            When a matching category can't be found, this method will call itself
+            to search for the "Uncategorized" `value` on the "wc-name" `field`
+        """
+        try:
+            mapped = [key for key in self.category_mapping if value in key[field]]
+            return int(mapped[0]['wc-id'])
+        except IndexError: # Couldn't find it, return the uncategorized id
+            return self.__search_map('Uncategorized', 'wc-name')
+
+    def does_product_exist(self, item_id):
+        """
+            Determines if the product with the `item_id` has
+            already been uploaded to WooCommerce, by checking
+            for the truthyness of `post_id`
+        """
+        data = self.db_get_product_data(item_id)
+        if data.get('post_id') is not None:
+            return True
+        return False
+
+    def get_mapped_category_id(self, ebay_category_id):
+        """
+            Determines if the user provided a category mapping, and if so
+            returns an integer, which is the Woo Commerce category id that
+            is mapped to the `ebay_category_id` (or the Uncategorized category
+            id if a mapping can not be found)
+
+            In the case that the user has not provided a category mapping,
+            this method returns None
+        """
+        if self.category_mapping is not None:
+            return self.__search_map(ebay_category_id, 'ebay_ids')
+        return None
 
     def download_product_images_from_ebay(self, item_id):
         """
@@ -195,87 +261,6 @@ class WooCommerceShim(Database):
         data = {'images': [{'src': image_url}]}
         return self.api.put('products/%d' % (post_id), data).json()
 
-    def does_product_exist(self, item_id):
-        """
-            Determines if the product with the `item_id` has
-            already been uploaded to WooCommerce, by checking
-            for the truthyness of `post_id`
-        """
-        data = self.db_get_product_data(item_id)
-        if data.get('post_id') is not None:
-            return True
-        return False
-
-    def __search_map(self, value, field):
-        """
-            Uses List Comprehension to search for the `value` in the `field`.
-
-            Normal usage would be similar to `self.__search_map(ebay_category_id, 'ebay_ids')`
-
-            Returns an integer, which is the first matching Woo Commerce ID for
-            the selected `value` (in the case that one ebay category is mapped to
-            multiple woo commerce categories)
-
-            When a matching category can't be found, this method will call itself
-            to search for the "Uncategorized" `value` on the "wc-name" `field`
-        """
-        try:
-            mapped = [key for key in self.category_mapping if value in key[field]]
-            return int(mapped[0]['wc-id'])
-        except IndexError: # Couldn't find it, return the uncategorized id
-            return self.__search_map('Uncategorized', 'wc-name')
-
-    def get_mapped_category_id(self, ebay_category_id):
-        """
-            Determines if the user provided a category mapping, and if so
-            returns an integer, which is the Woo Commerce category id that
-            is mapped to the `ebay_category_id` (or the Uncategorized category
-            id if a mapping can not be found)
-
-            In the case that the user has not provided a category mapping,
-            this method returns None
-        """
-        if self.category_mapping is not None:
-            return self.__search_map(ebay_category_id, 'ebay_ids')
-        return None
-
-    def create_product(self, item_id):
-        """
-            Pulls the product related to the `item_id`
-            out of the database and uploads it to WooCommerce
-
-            Returns the result as JSON
-        """
-        self.log.debug('Creating a WooCommerce product from ebay id: %s' % (item_id))
-
-        if self.does_product_exist(item_id):
-            self.log.warning('Product with item id %d already exists, skipping' % (item_id))
-            return self
-
-        data = self.db_get_product_data(item_id)
-
-        upload_data = {
-            'name': data['title'],
-            'type': 'simple',
-            'short_description': data['condition_description'],
-            'sku': data['sku'],
-        }
-
-        # Add the category id
-        category_id = self.get_mapped_category_id(item_id)
-        if category_id is not None:
-            upload_data['categories'] = [{ 'id': category_id }]
-
-        res = self.api.post('products', upload_data).json()
-
-        if res.get('id', False):
-            self.db_product_uploaded(item_id, res['id'])
-
-        return self
-
-    def delete_product(self, item_id):
-        pass
-
     def upload_product_images(self, item_id):
         """
             With the provided `item_id`, the database
@@ -305,7 +290,72 @@ class WooCommerceShim(Database):
 
         return self
 
-    def try_command(self, command, item_id):
+    def create_product(self, item_id):
+        """
+            Pulls the product related to the `item_id`
+            out of the database and uploads it to WooCommerce
+
+            Returns the result as JSON
+        """
+        self.log.debug('Creating a WooCommerce product from ebay id: %s' % (item_id))
+
+        if self.does_product_exist(item_id):
+            self.log.warning('Product with item id %d already exists, skipping' % (item_id))
+            return self
+
+        data = self.db_get_product_data(item_id)
+
+        upload_data = {
+            'name': data['title'],
+            'type': 'simple',
+            'short_description': data['condition_description'],
+            'sku': data['sku'],
+        }
+
+        # Add the category id
+        category_id = self.get_mapped_category_id(item_id)
+        if category_id is not None:
+            upload_data['categories'] = [{ 'id': category_id }]
+
+        self.log.debug(upload_data)
+
+        res = self.api.post('products', upload_data).json()
+
+        if res.get('id', False):
+            self.db_product_uploaded(item_id, res['id'])
+
+        return self
+
+    def delete_product(self, item_id):
+        pass
+
+    def delete_all_products_in_range(self, id_range):
+        """
+            With a provided `id_range`, which is expected to be
+            a `range` or `list` type, multiple bulk requests
+            will be made to the Woo Commerce API to delete
+            those items.
+
+            When `id_range` is of type(range), your ending ID needs
+            to be the last ID to delete + 1
+
+            Returns None
+        """
+        self.log.info('Deleting products from %d to %d' % (id_range[0], id_range[-1]))
+
+        # The API says that it supports chunks up to 100 items, but in testing
+        # it would always time out, even if it successfully deleted the items
+        # with any chunk size greater than or equal to 50
+        for chunk in self.__divide_into_chunks(id_range, 49):
+            post_ids = list(chunk)
+            data = {
+                'delete': post_ids
+            }
+            self.api.post('products/batch', data)
+            self.log.info('Deleted ids %s' % (post_ids))
+
+
+    def try_command(self, command, data):
         """
             Wrapper for running methods.
 
@@ -314,11 +364,18 @@ class WooCommerceShim(Database):
             a try, except statement
 
             `command` is a string that is inside `__available_commands`
+
+            `data` is dependent on the type of command that is being ran.
+            In most instances, it is an integer containing the ebay ItemID.
+
+            With the `delete_all_products` command, it is either a range or
+            a list containing the post ids for existing products
         """
         __available_commands = [
             'create_product',
             'delete_product',
             'upload_images',
+            'delete_all_products',
         ]
 
         err_msg = "Command %s is unrecognized. Supported commands are: %s" % (
@@ -330,19 +387,23 @@ class WooCommerceShim(Database):
 
         try:
             if command == 'create_product':
-                self.create_product(item_id)
+                self.create_product(data)
 
             elif command == 'delete_product':
-                self.delete_product(item_id)
+                self.delete_product(data)
 
             elif command == 'upload_images':
-                self.upload_product_images(item_id)
+                self.upload_product_images(data)
+
+            elif command == 'delete_all_products':
+                self.delete_all_products_in_range(data)
 
             else:
                 self.log.exception(err_msg)
                 raise NameError(err_msg)
 
-        except requests.exceptions.ConnectTimeout:
+        # The 3 kinds of timeout exceptions that are normally returned by the API
+        except (timeout, ReadTimeoutError, requests.exceptions.ConnectTimeout):
             self.log.exception('The Previous request Timed Out. Waiting 5s before retrying')
             time.sleep(5)
-            self.try_command(command, item_id)
+            self.try_command(command, data)
