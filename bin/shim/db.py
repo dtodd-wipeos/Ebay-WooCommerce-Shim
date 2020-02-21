@@ -165,6 +165,27 @@ class Database:
         """
         return self.__cursor.execute(query, values)
 
+    def __fetchall(self):
+        """
+            Shortcut to fetch all rows that were returned
+            by a previous query
+
+            Returns a list of dictionaries, where each
+            dictionary contains the columns that were SELECTed
+            if they were not None
+        """
+        return [ dict(row) for row in self.__cursor.fetchall() if row ]
+
+    def __fetchone(self, key, default=None):
+        """
+            Shortcut to fetch one row that was returned
+            by a previous query
+
+            Returns the `key` from the dictionary if it
+            exists, or `default` in the case it does not
+        """
+        return dict(self.__cursor.fetchone()).get(key, default)
+
     def __get_datetime_obj(self, time_string):
         """
             Parses an ISO 8601 date (such as provided by the ebay API)
@@ -298,7 +319,8 @@ class Database:
                         detail['Value'] = ', '.join(detail['Value'])
 
                     self.__store_key_value(item['ItemID'], detail['Name'], detail['Value'])
-            
+
+            # Case for only one ItemSpecifc field
             elif type(item['ItemSpecifics']['NameValueList']) is dict:
                 values = item['ItemSpecifics']['NameValueList']
 
@@ -361,7 +383,7 @@ class Database:
         }
 
         self.__execute(query, values)
-        return [ dict(row) for row in self.__cursor.fetchall() if row ]
+        return self.__fetchall()
 
     def db_get_all_product_metadata(self, item_id):
         """
@@ -379,7 +401,7 @@ class Database:
         }
 
         self.__execute(query, values)
-        return [ dict(row) for row in self.__cursor.fetchall() if row ]
+        return self.__fetchall()
 
     def db_get_active_item_ids(self):
         """
@@ -403,6 +425,8 @@ class Database:
 
             This field is then checked before uploading the data, and
             skipped (by default) if the data has already been uploaded
+
+            Returns `self`
         """
         if data_type == 'product':
             query = "UPDATE items SET post_id = :post_id WHERE itemid = :item_id;"
@@ -425,6 +449,8 @@ class Database:
     def db_product_uploaded(self, post_id, item_id):
         """
             Shortcut to mark products as uploaded by storing the post it is a part of
+
+            Returns `self`
         """
         return self.__mark_data_as_uploaded('product', post_id, item_id)
 
@@ -432,31 +458,67 @@ class Database:
         """
             Shortcut to mark product metadata (such as images and attributes)
             as uploaded by storing the post it is a part of
+
+            Returns `self`
         """
         return self.__mark_data_as_uploaded('metadata', post_id, item_id)
 
     def db_ebay_get_request_counter(self):
+        """
+            Returns an integer that is the total amount of requests today
+        """
         query = "SELECT value FROM ebay_internals where key = 'requests_today'"
         self.__execute(query)
-        return int(dict(self.__cursor.fetchone()).get('value', 0))
+        return int(self.__fetchone('value', 0))
 
     def db_ebay_increment_request_counter(self):
+        """
+            For every request made to the ebay API
+            (Currently only when getting metadata),
+            we add one to the request counter
+
+            Returns None
+        """
         requests = self.db_ebay_get_request_counter()
         query = "UPDATE ebay_internals SET value = :requests WHERE key = 'requests_today'"
         self.__execute(query, {'requests': requests + 1,})
     
     def db_ebay_zero_request_counter(self):
+        """
+            Resets the request counter to 0
+
+            The request counter is used to ensure that
+            we don't make so many API requests to ebay
+            that we hit the rate limit (5000 requests/day)
+
+            returns None
+        """
         query = "UPDATE ebay_internals SET value = 0 WHERE key = 'requests_today'"
         self.__execute(query)
 
     def db_ebay_store_got_item_ids(self, item_ids):
+        """
+            Used to save the current state of the program
+            whenever we hit a rate limit
+
+            returns None
+        """
         query = "UPDATE ebay_internals SET value = :items WHERE key = 'got_item_ids'"
         self.__execute(query, {'items': json.dumps(item_ids),})
 
     def db_ebay_get_got_item_ids(self):
+        """
+            Provides a starting point for the program to
+            continue from when it pulls the item metadata
+
+            In the case that no ids were stored previously,
+            this will default to all active items
+
+            Returns a list of ebay item ids
+        """
         query = "SELECT value FROM ebay_internals WHERE key = 'got_item_ids'"
         self.__execute(query)
-        ids = json.loads(dict(self.__cursor.fetchone()).get('value', '[]'))
+        ids = json.loads(self.__fetchone('value', '[]'))
 
         if not ids:
             self.log.warning('No continue point, getting all active items')
@@ -474,7 +536,7 @@ class Database:
         """
         query = "SELECT value FROM ebay_internals WHERE key = 'got_seller_list_date'"
         self.__execute(query)
-        last_date = dict(self.__cursor.fetchone()).get('value', 'no')
+        last_date = self.__fetchone('value', 'no')
 
         if last_date != 'no' and isodate.parse_date(last_date) >= datetime.date.today():
             msg = 'We already ran get_seller_list today (or in the future). Wait until tomorrow'
@@ -486,10 +548,19 @@ class Database:
             today = isodate.date_isoformat(datetime.date.today())
             self.__execute(query, {'isodate': today})
 
+            self.db_ebay_zero_request_counter()
+
         return True
 
     def db_woo_get_post_id(self, item_id):
+        """
+            Searches the database for `item_id`, and will
+            return the value of the `post_id` column.
+
+            If the product has not been uploaded to Woo Commerce,
+            this will return None
+        """
         query = "SELECT post_id FROM items WHERE itemid = :item_id"
         self.__execute(query, {'item_id': item_id})
 
-        return dict(self.__cursor.fetchone()).get('post_id')
+        return self.__fetchone('post_id')
