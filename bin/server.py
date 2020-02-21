@@ -8,7 +8,7 @@ import sys
 import logging
 import threading
 
-from shim.queue import ProductUploadQueue, EbayDownloadQueue
+from shim.queue import EbayDownloadQueue, ProductUploadQueue, ProductImageQueue
 from shim.util import LOG_HANDLER
 
 class Server:
@@ -44,6 +44,11 @@ class Server:
         product_queue = threading.Thread(target=ProductUploadQueue)
         product_queue.start()
         self.threads.append(product_queue)
+
+        # Start the ProductImageQueue
+        product_image_queue = threading.Thread(target=ProductImageQueue)
+        product_image_queue.start()
+        self.threads.append(product_image_queue)
 
     def __finish_threads(self):
         """
