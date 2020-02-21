@@ -33,6 +33,7 @@ class Database:
         # Store a local database of items as a cache.
         self.__database = sqlite3.connect(
             os.environ.get('database_file', 'database/ebay_items.db'),
+            isolation_level=None,
             detect_types=detect_types)
 
         with self.__database:
