@@ -181,7 +181,7 @@ class WooCommerceShim(Database):
             self.log.error('Could not upload %s' % image['name'])
             return False
 
-    def update_product_with_image(self, post_id, image_url):
+    def set_product_featured_image(self, post_id, image_url):
         """
             Updates the product selected with `post_id` to have
             the featured image be `image_url`
@@ -271,10 +271,24 @@ class WooCommerceShim(Database):
         if res.get('id', False):
             self.db_product_uploaded(item_id, res['id'])
 
+        return self
+
+    def manage_image_for_product(self, item_id):
+        post_id = self.db_woo_get_post_id(item_id)
+        gallery = []
+
+        if post_id is not None:
             images = self.download_product_images_from_ebay(item_id)
             for image in images:
-                url = self.upload_image_to_woocommerce(images[image], res['id'])
+                url = self.upload_image_to_woocommerce(images[image], post_id)
                 if url:
-                    self.update_product_with_image(res['id'], url)
+                    self.set_product_featured_image(post_id, url)
+                    gallery.append({'src': url})
             del images
+
+            # Add the images to the gallery
+            self.api.put('products/%d' % (post_id), {'images': gallery}).json()
+        else:
+            self.log.warning('The product %d has not yet been uploaded' % (item_id))
+
         return self

@@ -487,3 +487,9 @@ class Database:
             self.__execute(query, {'isodate': today})
 
         return True
+
+    def db_woo_get_post_id(self, item_id):
+        query = "SELECT post_id FROM items WHERE itemid = :item_id"
+        self.__execute(query, {'item_id': item_id})
+
+        return dict(self.__cursor.fetchone()).get('post_id')

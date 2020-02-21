@@ -121,6 +121,42 @@ class ProductUploadQueue(BaseQueue):
     def worker(self):
         """
             Creates an API connection to the database
+            and runs the method to upload the product
+            data to woocommerce
+
+            This method will run in a seperate (non-blocking)
+            thread until the queue gives a `None` object,
+            signifying that it is empty
+        """
+        api = WooCommerceShim()
+
+        while True:
+            item_id = self.queue.get()
+            if item_id is None:
+                break
+
+            api.create_product(item_id)
+
+            self.queue.task_done()
+
+class ProductImageQueue(BaseQueue):
+
+    def __init__(self, workers=MAX_WORKERS, *args, **kwargs):
+        super(ProductImageQueue, self).__init__(workers=MAX_WORKERS, *args, **kwargs)
+
+        self.log.info('Populating queue with ebay item ids')
+
+        if item_ids is None:
+            item_ids = WooCommerceShim().db_get_active_item_ids()
+
+        for item_id in item_ids:
+            self.queue.put_nowait(item_id)
+
+        self.start()
+
+    def worker(self):
+        """
+            Creates an API connection to the database
             and runs the method to download images from
             ebay, upload the product data to woocommerce,
             and upload the images to wordpress
@@ -136,7 +172,7 @@ class ProductUploadQueue(BaseQueue):
             if item_id is None:
                 break
 
-            api.create_product(item_id)
+            api.manage_image_for_product(item_id)
 
             self.queue.task_done()
 
