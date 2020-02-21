@@ -317,8 +317,6 @@ class WooCommerceShim(Database):
         if category_id is not None:
             upload_data['categories'] = [{ 'id': category_id }]
 
-        self.log.debug(upload_data)
-
         res = self.api.post('products', upload_data).json()
 
         if res.get('id', False):
