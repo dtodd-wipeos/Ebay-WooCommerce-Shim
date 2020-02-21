@@ -33,7 +33,6 @@ class Database:
         # Store a local database of items as a cache.
         self.__database = sqlite3.connect(
             os.environ.get('database_file', 'database/ebay_items.db'),
-            isolation_level=None,
             detect_types=detect_types)
 
         with self.__database:
@@ -56,8 +55,9 @@ class Database:
 
         self.__cursor.executescript("""
             CREATE TABLE IF NOT EXISTS items (
-                itemid INTEGER PRIMARY KEY,
-                active BOOLEAN,
+                item_id INTEGER PRIMARY KEY,
+                post_id INTEGER,
+                active CHAR,
                 available_quantity INTEGER,
                 title TEXT,
                 sku TEXT,
@@ -72,8 +72,14 @@ class Database:
 
             CREATE TABLE IF NOT EXISTS item_metadata (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                itemid INTEGER,
+                item_id INTEGER,
+                post_id INTEGER,
                 key TEXT,
+                value TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS ebay_internals (
+                key CHAR PRIMARY KEY NOT NULL UNIQUE,
                 value TEXT
             );
         """)
@@ -100,53 +106,12 @@ class Database:
 
         if get_version() < 1:
             """
-                Track the post that is associated with the data;
-                used to determine if we've uploaded the product
-                (returns None if not)
+                Add some internal values to track the state across different launches
             """
             query += """
-                ALTER TABLE items ADD post_id INTEGER;
-                ALTER TABLE item_metadata ADD post_id INTEGER;
-            """
-            query += increment_version()
-
-        if get_version() < 2:
-            """
-                Track a couple internal state values to the ebay module
-
-                `requests_today` is compared against when calling
-                the ebay API and will stop the program if we reach
-                `EbayShim().metadata_rate_limit`
-
-                `got_item_ids` is a list of Item IDs that will be used
-                to get ItemSpecific information for each item in the list.
-                This is filled when the program reaches the rate limit so
-                that it can continue where it left off the next day
-            """
-            query += """
-                CREATE TABLE IF NOT EXISTS ebay_internals (
-                    key CHAR PRIMARY KEY NOT NULL UNIQUE,
-                    value TEXT NOT NULL
-                );
-                INSERT INTO ebay_internals
-                    (key, value)
-                VALUES ('requests_today', 0);
-                INSERT INTO ebay_internals
-                    (key, value)
-                VALUES ('got_item_ids', '[]');
-            """
-            query += increment_version()
-
-        if get_version() < 3:
-            """
-                Add more state internals, such as determining if we've
-                already gotten the seller list today so that we can
-                avoid un-necessary calls
-            """
-            query += """
-                INSERT into ebay_internals
-                    (key, value)
-                VALUES ('got_seller_list_date', 'no');
+                INSERT INTO ebay_internals (key, value) VALUES ('requests_today', 0);
+                INSERT INTO ebay_internals (key, value) VALUES ('got_item_ids', '[]');
+                INSERT into ebay_internals (key, value) VALUES ('got_seller_list_date', 'no');
             """
             query += increment_version()
 
@@ -212,19 +177,19 @@ class Database:
         # saved information is up to date (or at least recent)
         query = """
             INSERT OR REPLACE INTO items (
-                itemid, active, available_quantity,
+                item_id, active, available_quantity,
                 title, sku, start_date, end_date,
                 category_id, category_name, condition_name,
                 condition_description
             ) VALUES (
-                :itemid, :active, :available_quantity,
+                :item_id, :active, :available_quantity,
                 :title, :sku, :start_date, :end_date,
                 :category_id, :category_name, :condition_name,
                 :condition_description)
         """
 
         values = {
-            'itemid': int(item['ItemID']),
+            'item_id': int(item['ItemID']),
             'active': item['SellingStatus']['ListingStatus'],
             'available_quantity': int(item['Quantity']) - int(item['SellingStatus']['QuantitySold']),
             'title': item['Title'],
@@ -255,19 +220,19 @@ class Database:
         query_for_existing = """
             SELECT * FROM item_metadata
             WHERE
-                itemid = :itemid AND
+                item_id = :item_id AND
                 key = :key AND
                 value = :value
         """
 
         query_to_insert = """
             INSERT INTO item_metadata (
-                itemid, key, value
-            ) values (:itemid, :key, :value)
+                item_id, key, value
+            ) values (:item_id, :key, :value)
         """
 
         values = {
-            'itemid': int(item_id),
+            'item_id': int(item_id),
             'key': key,
             'value': value,
         }
@@ -350,7 +315,7 @@ class Database:
             FROM items
             WHERE
                 available_quantity > 0 AND
-                itemid = :item_id
+                item_id = :item_id
             LIMIT 1
         """
         values = {
@@ -373,7 +338,7 @@ class Database:
         query = """
             SELECT value, post_id FROM item_metadata
             WHERE
-                itemid = :item_id AND
+                item_id = :item_id AND
                 key = 'picture_url'
             ORDER BY value;
         """
@@ -395,7 +360,7 @@ class Database:
             is one key-value combination for the data stored
             or an empty list if nothing is found
         """
-        query = "SELECT key, value FROM item_metadata WHERE itemid = :item_id;"
+        query = "SELECT key, value FROM item_metadata WHERE item_id = :item_id;"
         values = {
             'item_id': str(item_id),
         }
@@ -411,12 +376,12 @@ class Database:
             Returns a list containing all the item ids
         """
         self.log.debug('Getting all active IDs')
-        query = "SELECT itemid FROM items WHERE active = 'Active' AND post_id IS NULL;"
+        query = "SELECT item_id FROM items WHERE active = 'Active' AND post_id IS NULL;"
 
         self.__execute(query)
         item_ids = self.__cursor.fetchall()
 
-        return [ i['itemid'] for i in item_ids if i['itemid'] ]
+        return [ i['item_id'] for i in item_ids if i['item_id'] ]
 
     def __mark_data_as_uploaded(self, data_type, post_id, item_id):
         """
@@ -429,9 +394,9 @@ class Database:
             Returns `self`
         """
         if data_type == 'product':
-            query = "UPDATE items SET post_id = :post_id WHERE itemid = :item_id;"
+            query = "UPDATE items SET post_id = :post_id WHERE item_id = :item_id;"
         elif data_type == 'metadata':
-            query = "UPDATE item_metadata SET post_id = :post_id WHERE itemid = :item_id;"
+            query = "UPDATE item_metadata SET post_id = :post_id WHERE item_id = :item_id;"
         else:
             raise ValueError(
                 'Incorrect data_type %s. Expected "product" or "metadata"' % (data_type)
@@ -560,14 +525,14 @@ class Database:
             If the product has not been uploaded to Woo Commerce,
             this will return None
         """
-        query = "SELECT post_id FROM items WHERE itemid = :item_id"
+        query = "SELECT post_id FROM items WHERE item_id = :item_id"
         self.__execute(query, {'item_id': item_id})
 
         return self.__fetchone('post_id')
 
     def db_get_inactive_uploaded_item_ids(self):
         query = """
-            SELECT itemid FROM items
+            SELECT item_id FROM items
             WHERE
                 post_id is not NULL AND
                 active != 'Active' OR
@@ -575,4 +540,4 @@ class Database:
         """
         self.__execute(query)
         item_ids = self.__fetchall()
-        return [ i['itemid'] for i in item_ids if i['itemid'] ]
+        return [ i['item_id'] for i in item_ids if i['item_id'] ]
