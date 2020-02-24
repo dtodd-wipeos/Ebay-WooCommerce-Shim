@@ -58,7 +58,7 @@ class Server:
             product on WooCommerce that matches its data
         """
         # TODO: Remove this after testing
-        item_ids = self.active_item_ids[0:20]
+        item_ids = self.active_item_ids[0:1000]
 
         for item_id in item_ids:
             self.woo.try_command('create_product', item_id)
@@ -70,7 +70,7 @@ class Server:
             required to upload any images or other attributes
         """
         # TODO: Remove this after testing
-        item_ids = self.active_item_ids[0:20]
+        item_ids = self.active_item_ids[0:1000]
 
         for item_id in item_ids:
             self.woo.try_command('upload_images', item_id)
