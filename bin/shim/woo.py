@@ -180,6 +180,10 @@ class WooCommerceShim(Database):
                     extension = mime_type.split('/')[1]
                     filename = '%s.%s' % (slug, extension)
 
+                    if 'image' not in mime_type:
+                        self.log.warning("%d didn't get an image somehow. Content type was: %s" % (item_id, mime_type))
+                        continue
+
                     downloaded_images[filename] = {
                         'slug': slug,
                         'name': filename,
@@ -190,8 +194,8 @@ class WooCommerceShim(Database):
                     self.log.info("Image %s downloaded" % (filename))
 
                     if count < image_urls_count:
-                        self.log.info("Waiting 5 seconds until next download")
-                        time.sleep(5)
+                        self.log.info("Waiting 1 seconds until next download")
+                        time.sleep(1)
                 else:
                     self.log.error(
                         "No content returned. Is %s reachable in a browser?" % (url)
@@ -326,7 +330,7 @@ class WooCommerceShim(Database):
         res = self.api.post('products', upload_data).json()
 
         if res.get('id', False):
-            self.db_product_uploaded(item_id, res['id'])
+            self.db_product_uploaded(res['id'], item_id)
 
         return self
 
@@ -419,23 +423,23 @@ class WooCommerceShim(Database):
 
         try:
             if command == 'create_product':
-                self.create_product(data)
+                return self.create_product(data)
 
             elif command == 'delete_product':
-                self.delete_product(data)
+                return self.delete_product(data)
 
             elif command == 'upload_images':
-                self.upload_product_images(data)
+                return self.upload_product_images(data)
 
             elif command == 'delete_all_products':
-                self.delete_all_products_in_range(data)
+                return self.delete_all_products_in_range(data)
 
             else:
                 self.log.exception(err_msg)
                 raise NameError(err_msg)
 
-        # The 3 kinds of timeout exceptions that are normally returned by the API
-        except (timeout, ReadTimeoutError, requests.exceptions.ConnectTimeout):
+        # The several kinds of timeout exceptions that are normally returned by the API
+        except (timeout, ReadTimeoutError, requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout):
             self.log.exception('The Previous request Timed Out. Waiting 5s before retrying')
             time.sleep(5)
             self.try_command(command, data)
