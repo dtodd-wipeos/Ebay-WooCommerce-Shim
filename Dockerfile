@@ -47,6 +47,6 @@ ADD ./bin /opt
 
 # Run the app
 FROM build_app AS run_app
-ENTRYPOINT ["bash"]
-CMD ["./run.sh production"]
+ENTRYPOINT ["./run.sh"]
+CMD ["production"]
 # End run the app
