@@ -545,3 +545,12 @@ class Database:
         self.__execute(query)
         item_ids = self.__fetchall()
         return [ i['item_id'] for i in item_ids if i['item_id'] ]
+
+    def db_get_metadata_post_id_from_value(self, value):
+        query = """
+            SELECT * FROM item_metadata
+            WHERE value = :value
+            LIMIT 1
+        """
+        self.__execute(query, {'value': value})
+        return self.__fetchone('post_id')
