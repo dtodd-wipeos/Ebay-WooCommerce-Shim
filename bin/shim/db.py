@@ -324,7 +324,10 @@ class Database:
         }
 
         self.__execute(query, values)
-        return dict(self.__cursor.fetchone())
+        try:
+            return dict(self.__cursor.fetchone())
+        except TypeError:
+            return {}
 
     def db_get_product_image_urls(self, item_id):
         """
