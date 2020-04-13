@@ -7,6 +7,7 @@ import os
 import sys
 import json
 import time
+import uuid
 import sqlite3
 import logging
 import datetime
@@ -194,7 +195,7 @@ class Database:
             'active': item['SellingStatus']['ListingStatus'],
             'available_quantity': int(item['Quantity']) - int(item['SellingStatus']['QuantitySold']),
             'title': item['Title'],
-            'sku': item['SKU'],
+            'sku': item.get('SKU', uuid.uuid4().hex),
             'start_date': self.__get_datetime_obj(item['ListingDetails']['StartTime']),
             'end_date': self.__get_datetime_obj(item['ListingDetails']['EndTime']),
             'category_id': int(item['PrimaryCategory']['CategoryID']),
@@ -292,7 +293,7 @@ class Database:
 
                 if type(values['Value']) is list:
                     detail['Value'] = ', '.join(detail['Value'])
-                
+
                 self.__store_key_value(item['ItemID'], values['Name'], values['Value'])
 
             else:
@@ -451,7 +452,7 @@ class Database:
         requests = self.db_ebay_get_request_counter()
         query = "UPDATE ebay_internals SET value = :requests WHERE key = 'requests_today'"
         self.__execute(query, {'requests': requests + 1,})
-    
+
     def db_ebay_zero_request_counter(self):
         """
             Resets the request counter to 0

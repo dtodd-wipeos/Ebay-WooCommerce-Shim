@@ -97,11 +97,11 @@ class Server:
             4. Upload the downloaded product metadata to WooCommerce
             5. Delete any products that ended on ebay from WooCommerce
         """
-        # self.__ebay_download_products()
-        # self.__ebay_download_metadata()
-        # self.__woo_upload_products()
+        self.__ebay_download_products()
+        self.__ebay_download_metadata()
+        self.__woo_upload_products()
         self.__woo_upload_metadata()
-        # self.__woo_delete_products()
+        self.__woo_delete_products()
 
 if __name__ == '__main__':
     Server().start()
