@@ -363,6 +363,18 @@ class WooCommerceShim(Database):
 
         if res.get('id', False):
             self.db_product_uploaded(res['id'], item_id)
+        else:
+            # Invalid or duplicate sku
+            if res.get('code') == 'product_invalid_sku':
+                if res.get('data') and res['data'].get('resource_id'):
+                    new_post_id = res['data']['resource_id']
+                    self.log.warning(
+                        'The SKU for %s already exists for %s. Updating.' % (new_post_id, item_id))
+                    self.db_product_uploaded(new_post_id, item_id)
+            else:
+                self.log.error('Unable to retrive product_id')
+                self.log.debug(res)
+                self.log.debug(upload_data)
 
         return self
 
