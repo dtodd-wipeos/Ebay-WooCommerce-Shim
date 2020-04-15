@@ -555,3 +555,11 @@ class Database:
         """
         self.__execute(query, {'value': value})
         return self.__fetchone('post_id')
+
+    def db_get_all_items(self):
+        self.__execute('SELECT * FROM items;')
+        return self.__fetchall()
+
+    def db_get_all_item_metadata(self):
+        self.__execute('SELECT * from item_metadata')
+        return self.__fetchall()

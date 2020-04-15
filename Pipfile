@@ -12,6 +12,7 @@ quart = "*"
 isodate = "*"
 woocommerce = "*"
 wordpress-api = "*"
+mysql-connector = "*"
 
 [requires]
 python_version = "3.8"

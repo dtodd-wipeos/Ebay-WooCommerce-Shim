@@ -9,6 +9,7 @@ import logging
 
 from shim.ebay import EbayShim
 from shim.woo import WooCommerceShim
+from shim.mysql import MySQLShim
 from shim.util import LOG_HANDLER
 
 class Server:
@@ -28,6 +29,7 @@ class Server:
         # Shims
         self.ebay = EbayShim()
         self.woo = WooCommerceShim()
+        self.mysql = MySQLShim()
 
         self.active_item_ids = self.woo.db_get_active_item_ids()
         self.inactive_item_ids = self.woo.db_get_inactive_uploaded_item_ids()
@@ -86,6 +88,37 @@ class Server:
         for item_id in self.inactive_item_ids:
             self.woo.try_command('delete_product', item_id)
 
+    def delete_all_products(self, product_range):
+        """
+            Deletes all the products from WooCommerce
+            that have post_ids within `product_range`
+
+            `product_range` is expected to by of type
+            `range`, a list, or some other iterable
+        """
+        return self.woo.try_command('delete_all_products', product_range)
+
+    def __update_mysql_database(self):
+        """
+            This class is responsible for converting the
+            `items` and `item_metadata` tables from sqlite3
+            to mysql, and inserting the data into the mysql
+            database on the host
+
+            Ultimately this kinda defeats the whole point of
+            using the API, but whatever. The guy on fiverr
+            decided to not be bothered with reading my database...
+        """
+        msg = "mysql %s is not the same length as sqlite3 %s"
+
+        self.mysql.drop_tables()
+        self.mysql.create_tables()
+        self.mysql.insert_items()
+        if not self.mysql.sanity_check_products():
+            print(msg % ('items', 'items'))
+        if not self.mysql.sanity_check_metas():
+            print(msg % ('items', 'items'))
+
     def start(self):
         """
             Called to start everything.
@@ -102,6 +135,7 @@ class Server:
         self.__woo_upload_products()
         self.__woo_upload_metadata()
         self.__woo_delete_products()
+        self.__update_mysql_database()
 
 if __name__ == '__main__':
     Server().start()
