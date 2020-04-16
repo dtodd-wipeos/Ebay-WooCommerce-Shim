@@ -7,4 +7,5 @@ echo "Running your application"
 docker run \
        --volume $(pwd)/credentials:/opt/credentials \
        --volume $(pwd)/database:/opt/database \
+       --network host \
        alpine-ebay-woo-shim:latest
