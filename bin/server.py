@@ -117,7 +117,7 @@ class Server:
         if not self.mysql.sanity_check_products():
             print(msg % ('items', 'items'))
         if not self.mysql.sanity_check_metas():
-            print(msg % ('items', 'items'))
+            print(msg % ('item_metadata', 'item_metadata'))
 
     def start(self):
         """

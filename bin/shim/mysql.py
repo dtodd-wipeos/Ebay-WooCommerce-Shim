@@ -37,6 +37,7 @@ class MySQLShim:
             This should be considered a safe operation as
             the tables are recreated by this class
         """
+        self.log.info('Dropping tables')
         self.cursor.execute("DROP TABLE IF EXISTS ebay_internals")
         self.cursor.execute("DROP TABLE IF EXISTS items")
         self.cursor.execute("DROP TABLE IF EXISTS item_metadata")
@@ -48,6 +49,7 @@ class MySQLShim:
 
             (this is basically just a conversion from sqlite to mysql)
         """
+        self.log.info('Creating tables')
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS `items` (
                 `item_id` bigint(20) UNSIGNED NULL,
@@ -81,6 +83,7 @@ class MySQLShim:
             packages it in a mysql query and inserts
             them as a bulk transaction
         """
+        self.log.info('Adding items to the tables')
         products_to_insert = list()
         metas_to_insert = list()
 
