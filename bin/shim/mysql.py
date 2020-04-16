@@ -23,7 +23,7 @@ class MySQLShim:
         self.sqlite = Database()
 
         self.mysql = mysql.connector.connect(
-            host=kwargs.get('mysql_host', os.environ.get('mysql_host')),
+            host=kwargs.get('mysql_host', os.environ.get('mysql_host', 'localhost')),
             database=kwargs.get('mysql_db', os.environ.get('mysql_db')),
             user=kwargs.get('mysql_user', os.environ.get('mysql_user')),
             passwd=kwargs.get('mysql_pass', os.environ.get('mysql_pass')))

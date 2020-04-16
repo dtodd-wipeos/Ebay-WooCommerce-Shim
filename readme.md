@@ -62,6 +62,22 @@ will be using the wordpress plugins [JSON Basic Authentication](https://github.c
 
 The fields to set in the `creds.example` file are `wordpress_user` and `wordpress_app_password`. The wordpress blog is assumed to be at the same URL as the WooCommerce store.
 
+### MySQL
+
+The parts that I couldn't get working within a reasonable timeframe are uploading product images and uploading ItemSpecifics (specs).
+
+We decided that the inital version would not include the ItemSpecifics (good for us, cuts down on API calls drastically). However,
+we still need the product images to be uploaded. So we hired someone on Fiverr to create a wordpress plugin for us. The plugin in
+my opinion, is pretty bad. It's a mostly blank plugin that had barely anything added, no error checking, use of [file_get_contents](https://stackoverflow.com/questions/11064980/php-curl-vs-file-get-contents?answertab=votes#tab-top) instead of cURL, etc. It looks like it works for the most part however.
+
+The developer was lazy and instead of reading from my sqlite3 database, they simply uploaded the database to an online converter and added the tables.
+Because of this, I had to create a way to upload the database (specifically the `items` and `item_metadata` tables, the others are not beneficial for the wordpress plugin).
+The database upload is self contained in `bin/shim/mysql.py`. It kinda defeats the purpose of using the APIs in the first place, but whatever. The MySQLShim class does not touch any wordpress or woocommerce tables.
+
+Obviously we need to use MySQL credentials to interact with the database. Like the sections above, those are defined in `credentials/creds.example`.
+
+The fields to set in the `creds.example` file are `mysql_host`, `mysql_db`, `mysql_user`, and `mysql_password`. By default, we'll assume that the database is hosted on `localhost` if `mysql_host` is not set.
+
 ### Development
 
 1. Ensure that you have [Pipenv](https://github.com/pypa/pipenv) installed, in addition to Python 3.8
