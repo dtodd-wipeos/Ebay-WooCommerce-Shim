@@ -6,7 +6,7 @@
 # https://docs.docker.com/develop/develop-images/multistage-build/
 
 # Install the minimum required dependencies
-FROM alpine:edge AS install_base_depends
+FROM alpine:3.11.5 AS install_base_depends
 RUN apk add --no-cache bash python3 libxslt
 # End install minimum dependencies
 
