@@ -4,6 +4,7 @@
 # License: Properitary
 
 import os
+import pdb
 import logging
 
 import mysql.connector
@@ -49,7 +50,7 @@ class MySQLShim:
         """
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS `items` (
-                `item_id` bigint(20) DEFAULT NULL,
+                `item_id` bigint(20) UNSIGNED NULL,
                 `post_id` varchar(5) DEFAULT NULL,
                 `active` varchar(9) DEFAULT NULL,
                 `available_quantity` smallint(6) DEFAULT NULL,
@@ -67,7 +68,7 @@ class MySQLShim:
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS `item_metadata` (
                 `id` mediumint(9) DEFAULT NULL,
-                `item_id` bigint(20) DEFAULT NULL,
+                `item_id` bigint(20) UNSIGNED NULL,
                 `post_id` varchar(0) DEFAULT NULL,
                 `key` varchar(11) DEFAULT NULL,
                 `value` varchar(102) DEFAULT NULL
@@ -106,13 +107,12 @@ class MySQLShim:
                 product_meta.get('id'),
                 product_meta.get('item_id'),
                 product_meta.get('post_id'),
-                product_meta.get('key'),
-                product_meta.get('value'),
+                product_meta.get('key', ''),
+                product_meta.get('value', ''),
             ))
 
         product_query = """
-            INSERT INTO `items`
-            (
+            INSERT INTO items (
                 item_id, post_id, active,
                 available_quantity, title,
                 sku, start_date, end_date,
@@ -128,10 +128,11 @@ class MySQLShim:
             );
         """
 
+        # Turns out `key` and `value` are reserved keywords in mysql (not the case in sqlite)
         meta_query = """
-            INSERT INTO `item_metadata`
-            (id, item_id, post_id, key, value)
-            VALUES (%s, %s, %s, %s, %s);
+            INSERT INTO `item_metadata` (
+                id, item_id, post_id, `key`, `value`
+            ) VALUES (%s, %s, %s, %s, %s);
         """
 
         self.cursor.executemany(product_query, products_to_insert)
@@ -140,19 +141,31 @@ class MySQLShim:
         self.mysql.commit()
 
     def sanity_check_products(self):
-        query = "SELECT COUNT(id) FROM `items`;"
-        self.cursor.execute(query)
-        res = self.cursor.fetchall()
+        """
+            Counts the items that were added to the mysql table
+            and compares that with the items in the sqlite table
 
-        if len(res) == len(self.sqlite.db_get_all_items()):
+            Returns True if they have the same number of rows;
+            Otherwise, Returns False
+        """
+        query = "SELECT COUNT(item_id) FROM `items`;"
+        self.cursor.execute(query)
+
+        if self.cursor.fetchone()[0] == len(self.sqlite.db_get_all_items()):
             return True
         return False
 
     def sanity_check_metas(self):
+        """
+            Counts the metadata that was added to the mysql table
+            and compares that with the metadata in the sqlite table
+
+            Returns True if they have the same number of rows;
+            Otherwise, Returns False
+        """
         query = "SELECT COUNT(id) FROM `item_metadata`;"
         self.cursor.execute(query)
-        res = self.cursor.fetchall()
 
-        if len(res) == len(self.sqlite.db_get_all_items()):
+        if self.cursor.fetchone()[0] == len(self.sqlite.db_get_all_item_metadata()):
             return True
         return False

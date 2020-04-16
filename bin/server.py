@@ -126,16 +126,17 @@ class Server:
             This will do the following in order:
             1. Download products from ebay with GetSellerList
             2. Download product ItemSpecifics with GetItem
-            3. Upload the downloaded products to WooCommerce
-            4. Upload the downloaded product metadata to WooCommerce
-            5. Delete any products that ended on ebay from WooCommerce
+            3. Upload the database to the Wordpress database
+            4. Upload the downloaded products to WooCommerce
+            5. Upload the downloaded product metadata to WooCommerce
+            6. Delete any products that ended on ebay from WooCommerce
         """
         self.__ebay_download_products()
         self.__ebay_download_metadata()
+        self.__update_mysql_database()
         self.__woo_upload_products()
         self.__woo_upload_metadata()
         self.__woo_delete_products()
-        self.__update_mysql_database()
 
 if __name__ == '__main__':
     Server().start()
