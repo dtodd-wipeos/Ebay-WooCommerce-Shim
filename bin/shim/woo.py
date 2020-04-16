@@ -339,7 +339,7 @@ class WooCommerceShim(Database):
             images, update them (this will set the featured
             image on that product)
         """
-        self.log.debug('Setting featured image on %s' % (item_id))
+        self.log.info('Setting featured image on %s' % (item_id))
         post_id = self.db_woo_get_post_id(item_id)
         if post_id is not None:
             product = self.api.get('products/%d' % (post_id)).json()
