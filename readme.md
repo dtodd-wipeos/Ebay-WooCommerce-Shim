@@ -24,7 +24,7 @@ If you do not already have an account with the ebay developers program, you can 
 Once you are signed up, you will have to get a couple sets of [Access Keys](https://developer.ebay.com/my/keys). These are the sandbox and production keys.
 The sandbox is used for development and testing, and has very liberal request limists compared to the production API.
 
-Treat these keys with care, as they are what identifies your application. 
+Treat these keys with care, as they are what identifies your application.
 
 You will also need to request a [User Token](https://developer.ebay.com/my/auth/), which is how your ebay store talks with the application. Note that in the sandbox, your normal ebay login will not work.
 A sandbox user has to be created, before you can request a token in the sandbox. This is where it is rather limited, as before you can get products or seller events, you must first list products with that sandbox user.
@@ -61,22 +61,6 @@ will be using the wordpress plugins [JSON Basic Authentication](https://github.c
     * Note: This will **NOT** allow you to login to the UI with that password. It only authenticates API calls
 
 The fields to set in the `creds.example` file are `wordpress_user` and `wordpress_app_password`. The wordpress blog is assumed to be at the same URL as the WooCommerce store.
-
-### MySQL
-
-The parts that I couldn't get working within a reasonable timeframe are uploading product images and uploading ItemSpecifics (specs).
-
-We decided that the inital version would not include the ItemSpecifics (good for us, cuts down on API calls drastically). However,
-we still need the product images to be uploaded. So we hired someone on Fiverr to create a wordpress plugin for us. The plugin in
-my opinion, is pretty bad. It's a mostly blank plugin that had barely anything added, no error checking, use of [file_get_contents](https://stackoverflow.com/questions/11064980/php-curl-vs-file-get-contents?answertab=votes#tab-top) instead of cURL, etc. It looks like it works for the most part however.
-
-The developer was lazy and instead of reading from my sqlite3 database, they simply uploaded the database to an online converter and added the tables.
-Because of this, I had to create a way to upload the database (specifically the `items` and `item_metadata` tables, the others are not beneficial for the wordpress plugin).
-The database upload is self contained in `bin/shim/mysql.py`. It kinda defeats the purpose of using the APIs in the first place, but whatever. The MySQLShim class does not touch any wordpress or woocommerce tables.
-
-Obviously we need to use MySQL credentials to interact with the database. Like the sections above, those are defined in `credentials/creds.example`.
-
-The fields to set in the `creds.example` file are `mysql_host`, `mysql_db`, `mysql_user`, and `mysql_password`. By default, we'll assume that the database is hosted on `localhost` if `mysql_host` is not set.
 
 ### Development
 
@@ -129,3 +113,21 @@ Even though I was working on this on an off for a couple months, with about a mo
 1. The Threading is behaving weirdly when starting the various queues - They seem to be waiting sequentially. This could be due to the fact that a Queue will block its parent thread until its child threads have been finished.
 1. We're not uploading product attributes (ItemSpecifics) due to the fact that they have to be mapped - Due to this, we are not even pulling the attributes
 1. There is currently no way to delete a product once it is marked as either completed or the end date has been reached on ebay
+
+### MySQL - REMOVED
+
+This block here for historical reasons
+
+The parts that I couldn't get working within a reasonable timeframe are uploading product images and uploading ItemSpecifics (specs).
+
+We decided that the inital version would not include the ItemSpecifics (good for us, cuts down on API calls drastically). However,
+we still need the product images to be uploaded. So we hired someone on Fiverr to create a wordpress plugin for us. The plugin in
+my opinion, is pretty bad. It's a mostly blank plugin that had barely anything added, no error checking, use of [file_get_contents](https://stackoverflow.com/questions/11064980/php-curl-vs-file-get-contents?answertab=votes#tab-top) instead of cURL, etc. It looks like it works for the most part however.
+
+The developer was lazy and instead of reading from my sqlite3 database, they simply uploaded the database to an online converter and added the tables.
+Because of this, I had to create a way to upload the database (specifically the `items` and `item_metadata` tables, the others are not beneficial for the wordpress plugin).
+The database upload is self contained in `bin/shim/mysql.py`. It kinda defeats the purpose of using the APIs in the first place, but whatever. The MySQLShim class does not touch any wordpress or woocommerce tables.
+
+Obviously we need to use MySQL credentials to interact with the database. Like the sections above, those are defined in `credentials/creds.example`.
+
+The fields to set in the `creds.example` file are `mysql_host`, `mysql_db`, `mysql_user`, and `mysql_password`. By default, we'll assume that the database is hosted on `localhost` if `mysql_host` is not set.
