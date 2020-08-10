@@ -390,7 +390,7 @@ class EbayShim(Database):
             command, ', '.join(__available_commands))
 
         if command not in __available_commands:
-            self.log.debug(err_msg)
+            self.log.error(err_msg)
             raise NameError(err_msg)
 
         try:
@@ -410,7 +410,7 @@ class EbayShim(Database):
                 self.get_item_metadata()
 
             else:
-                self.log.debug(err_msg)
+                self.log.error(err_msg)
                 raise NameError(err_msg)
 
         except ConnectionError as e:
