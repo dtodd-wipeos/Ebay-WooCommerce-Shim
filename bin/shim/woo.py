@@ -505,6 +505,6 @@ class WooCommerceShim(Database):
 
         # The several kinds of timeout exceptions that are normally returned by the API
         except (timeout, ReadTimeoutError, requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout):
-            self.log.exception('The Previous request Timed Out. Waiting 5s before retrying')
+            self.log.warning('The Previous request Timed Out. Waiting 5s before retrying')
             time.sleep(5)
             self.try_command(command, data)
