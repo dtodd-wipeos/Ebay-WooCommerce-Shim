@@ -394,14 +394,17 @@ class EbayShim(Database):
             raise NameError(err_msg)
 
         try:
-            if command == 'get_seller_list' and self.db_ebay_got_seller_list_date():
-                # We need to run this at least once to populate
-                # `self.pagination_total_items` and `self.pagination_received_items`
-                self.get_seller_list().__print_response()
-
-                # If there are still items to get, get them
-                while self.pagination_received_items < self.pagination_total_items:
+            if command == 'get_seller_list':
+                if self.db_ebay_got_seller_list_date():
+                    # We need to run this at least once to populate
+                    # `self.pagination_total_items` and `self.pagination_received_items`
                     self.get_seller_list().__print_response()
+
+                    # If there are still items to get, get them
+                    while self.pagination_received_items < self.pagination_total_items:
+                        self.get_seller_list().__print_response()
+                else:
+                    self.log.warning("Get Seller List already ran today. Skipping")
 
             elif command == 'get_item_metadata':
                 self.get_item_metadata()
@@ -413,7 +416,7 @@ class EbayShim(Database):
         except ConnectionError as e:
             self.log.exception(e)
             self.log.exception(e.response.dict())
-    
+
         except exceptions.ReadTimeout:
             self.log.exception('The Previous request Timed Out. Waiting 5s before retrying')
             time.sleep(5)
