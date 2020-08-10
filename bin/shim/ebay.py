@@ -418,7 +418,7 @@ class EbayShim(Database):
             self.log.exception(e.response.dict())
 
         except exceptions.ReadTimeout:
-            self.log.exception('The Previous request Timed Out. Waiting 5s before retrying')
+            self.log.warning('The Previous request Timed Out. Waiting 5s before retrying')
             time.sleep(5)
             self.try_command(command)
 
