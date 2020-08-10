@@ -396,7 +396,10 @@ class WooCommerceShim(Database):
         return self
 
     def delete_product_images(self, post_id):
-        pass
+        self.log.info('Deleting media %d from WordPress' % (post_id))
+        response = self.api.delete('media/%d' % (post_id), params={'force': True}).json()
+        self.log.debug(response)
+        return response
 
     def delete_product(self, item_id):
         """
