@@ -434,7 +434,7 @@ class WooCommerceShim(Database):
             return response
         return None
 
-    def delete_all_products_in_range(self, id_range):
+    def delete_all_products_in_range(self, id_range, chunk_size=100):
         """
             With a provided `id_range`, which is expected to be
             a `range` or `list` type, multiple bulk requests
@@ -451,7 +451,7 @@ class WooCommerceShim(Database):
         # The API says that it supports chunks up to 100 items, but in testing
         # it would always time out, even if it successfully deleted the items
         # with any chunk size greater than or equal to 50
-        for chunk in self.__divide_into_chunks(id_range, 49):
+        for chunk in self.__divide_into_chunks(id_range, chunk_size):
             post_ids = list(chunk)
             data = {
                 'delete': post_ids
