@@ -296,20 +296,40 @@ class WooCommerceShim(Database):
 
             Returns the result as JSON
         """
+        attributes = list()
+        attributes_to_upload = list()
         self.log.info('Creating a WooCommerce product from ebay id: %s' % (item_id))
 
         if self.does_product_exist(item_id):
             self.log.warning('Product with item id %d already exists, skipping' % (item_id))
             return self
 
-        data = self.db_get_product_data(item_id)
+        product = self.db_get_product_data(item_id)
+        attributes = self.db_get_all_product_metadata(item_id)
+
+        # Strip out any pictures
+        attributes = [
+            attribute for attribute in attributes
+            if attribute['key'] != 'picture_url'
+        ]
+
+        # Format the attributes in a way that WooCommerce is expecting
+        for attribute in attributes:
+            attributes_to_upload.append({
+                'name': attribute['key'],
+                'options': [ attribute['value'] ],
+                "visible": True,
+                "variation": True,
+            })
 
         upload_data = {
-            'name': data['title'],
+            'name': product['title'],
             'type': 'simple',
-            'short_description': data['condition_description'],
+            'short_description': product['condition_description'],
             'description': DEFAULT_DESCRIPTION,
-            'sku': data['sku'],
+            'sku': product['sku'],
+            'attributes': attributes_to_upload,
+            'default_attributes': attributes_to_upload,
         }
 
         # Add the category id
@@ -413,42 +433,6 @@ class WooCommerceShim(Database):
             for post_id in post_ids:
                 self.delete_product_images(post_id)
 
-
-    def update_product_metadata(self, item_id):
-        post_id = self.db_woo_get_post_id(item_id)
-        attributes = list()
-        attributes_to_upload = list()
-
-        if post_id is not None:
-            attributes = self.db_get_all_product_metadata(item_id)
-
-            # Strip out any pictures
-            attributes = [
-                attribute
-                for attribute in attributes
-                if attribute['key'] != 'picture_url'
-            ]
-
-            # Format the attributes in a way that WooCommerce is expecting
-            for attribute in attributes:
-                attributes_to_upload.append({
-                    'name': attribute['key'],
-                    'options': [
-                        attribute['value']
-                    ],
-                    "visible": True,
-                    "variation": False,
-                })
-
-            options = {
-                'attributes': attributes_to_upload,
-                'default_attributes': attributes_to_upload
-            }
-            self.api.put('products/%d' % (post_id), options).json()
-            self.log.info("Attributes Added for item: %d" % (item_id))
-        else:
-            self.log.warning('The product %d has not yet been uploaded' % (item_id))
-
     def try_command(self, command, data):
         """
             Wrapper for running methods.
@@ -470,7 +454,6 @@ class WooCommerceShim(Database):
             'delete_product',
             'upload_images',
             'delete_all_products',
-            'upload_attributes',
         ]
 
         err_msg = "Command %s is unrecognized. Supported commands are: %s" % (
@@ -492,8 +475,6 @@ class WooCommerceShim(Database):
 
             elif command == 'delete_all_products':
                 return self.delete_all_products_in_range(data)
-            elif command == 'upload_attributes':
-                return self.update_product_metadata(data)
 
             else:
                 self.log.exception(err_msg)

@@ -71,7 +71,6 @@ class Server:
 
         for item_id in self.active_item_ids:
             self.woo.try_command('upload_images', item_id)
-            self.woo.try_command('upload_attributes', item_id)
 
     def __woo_delete_products(self):
         """
