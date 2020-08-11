@@ -270,24 +270,25 @@ class WooCommerceShim(Database):
             self.log.warning(
                 "Image %s already exists on wordpress. Not uploading again" % (image.get('name'))
             )
-            return False
+            return None, None
 
         if self.__does_image_have_post_id(image):
             self.log.warning(
                 "We already have a post_id for %s. Not uploading again" % (image.get('name'))
             )
-            return False
+            return None, None
 
         # Upload the image
-        uploaded = self.wp_api.post(endpoint, image.get('data'), headers=headers)
+        response = self.wp_api.post(endpoint, image.get('data'), headers=headers)
 
         try:
-            url = uploaded.json().get('guid', dict).get('raw')
+            image_id = response.json().get('id')
+            url = response.json().get('guid', dict).get('raw')
             self.log.debug("Uploaded %s to %s" % (image['name'], url))
-            return url
+            return image_id, url
         except AttributeError:
             self.log.error('Could not upload %s' % image['name'])
-            return False
+            return None, None
 
     def set_product_featured_image(self, post_id, image_url):
         """
@@ -318,11 +319,14 @@ class WooCommerceShim(Database):
 
         if post_id is not None:
             self.download_product_images_from_ebay(item_id)
+            # FIXME: Make this get only the images associated with the item_id
+            # Otherwise, we iterate over EVERY image for EVERY item
             for image in self.downloaded_images:
-                url = self.upload_image_to_woocommerce(self.downloaded_images[image], post_id)
-                if url:
+                image_id, url = self.upload_image_to_woocommerce(self.downloaded_images[image], post_id)
+                self.db_metadata_uploaded(image_id, item_id)
+                if image_id and url:
+                    gallery.append({'id': image_id})
                     self.set_product_featured_image(post_id, url)
-                    gallery.append({'src': url})
 
             # Add the images to the gallery
             self.api.put('products/%d' % (post_id), {'images': gallery}).json()
