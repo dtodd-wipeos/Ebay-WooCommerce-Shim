@@ -9,11 +9,9 @@ class Image:
         Contains a picture that will get uploaded
     """
 
-    def __init__(self, *args, **kwargs):
-        super(Image, self).__init__(*args, **kwargs)
-
-        self.name = kwargs.get('name')
-        self.slug = kwargs.get('slug')
-        self.ebay_url = kwargs.get('ebay_url')
-        self.mime_type = kwargs.get('mime_type')
-        self.data = kwargs.get('data')
+    def __init__(self, name, slug, ebay_url, mime_type, data):
+        self.name = name
+        self.slug = slug
+        self.ebay_url = ebay_url
+        self.mime_type = mime_type
+        self.data = data

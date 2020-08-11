@@ -85,21 +85,6 @@ class WooCommerceShim(Database):
             return False
         return True
 
-    def __does_image_have_post_id(self, image):
-        """
-            Alternate method for determining if an image has already been uploaded
-
-            Takes `image`, which is a dictionary containing various data about it
-            (generated from self.download_product_images_from_ebay()) and queries
-            the database for its post id (using the ebay_url, which should be unique)
-
-            Returns True in the case that a post id is not returned, and False
-            otherwise
-        """
-        if self.db_get_metadata_post_id_from_value(image.get('ebay_url')) is None:
-            return False
-        return True
-
     def __divide_into_chunks(self, iterable, chunk_size=100):
         """
             Used to make bulk requests via the API, which limits
@@ -176,20 +161,20 @@ class WooCommerceShim(Database):
         count = 0
         return_images = list()
 
-        images = self.db_get_product_image_urls(item_id)
-        image_urls_count = len(images)
+        image_urls = self.db_get_product_image_urls(item_id)
+        image_urls_count = len(image_urls)
 
         if image_urls_count > 0:
             self.log.info("Found %d image URLs for: %s" % (image_urls_count, item_id))
 
-            for image in images:
+            for image in image_urls:
                 url = image.get('value', '')
 
                 if image.get('post_id') is not None:
                     self.log.warning("We've already uploaded %s, skipping download" % (url))
                     continue
 
-                self.log.debug("Downloading %s" % (url))
+                self.log.info("Downloading %s" % (url))
                 req = requests.get(url)
 
                 if req.content:
@@ -203,18 +188,18 @@ class WooCommerceShim(Database):
                         self.log.error(msg % (item_id, mime_type))
                         continue
 
-                    return_images.append(Image({
-                        'slug': slug,
-                        'ebay_url': url,
-                        'name': filename,
-                        'mime_type': mime_type,
-                        'data': req.content,
-                    }))
+                    return_images.append(Image(
+                        slug = slug,
+                        ebay_url = url,
+                        name = filename,
+                        mime_type = mime_type,
+                        data = req.content
+                    ))
 
-                    self.log.info("Image %s downloaded" % (filename))
+                    # self.log.info("Image %s downloaded" % (filename))
 
                     if count < image_urls_count:
-                        self.log.info("Waiting a quarter second until next download")
+                        self.log.debug("Waiting a quarter second until next download")
                         time.sleep(0.25)
                 else:
                     self.log.error(
@@ -248,55 +233,34 @@ class WooCommerceShim(Database):
             if the image fails to be uploaded
         """
 
-        self.log.info("Uploading %s to wordpress" % (image.get('name')))
+        self.log.info("Uploading %s to wordpress" % (image.name))
 
         endpoint = '/media?post=%d' % (post_id)
 
         headers = {
             'cache-control': 'no-cache',
-            'content-disposition': 'attachment; filename=%s' % (image.get('name')),
-            'content-type': '%s' % (image.get('type'))
+            'content-disposition': 'attachment; filename=%s' % (image.name),
+            'content-type': '%s' % (image.mime_type)
         }
 
         # Don't upload a duplicate image if it was uploaded in the past
-        if self.__does_image_exist_on_woocommerce(image.get('slug')):
+        if self.__does_image_exist_on_woocommerce(image.slug):
             self.log.warning(
-                "Image %s already exists on wordpress. Not uploading again" % (image.get('name'))
-            )
-            return None, None
-
-        if self.__does_image_have_post_id(image):
-            self.log.warning(
-                "We already have a post_id for %s. Not uploading again" % (image.get('name'))
+                "Image %s already exists on wordpress. Not uploading again" % (image.name)
             )
             return None, None
 
         # Upload the image
-        response = self.wp_api.post(endpoint, image.get('data'), headers=headers)
+        response = self.wp_api.post(endpoint, image.data, headers=headers)
 
         try:
             image_id = response.json().get('id')
             url = response.json().get('guid', dict).get('raw')
-            self.log.debug("Uploaded %s to %s" % (image['name'], url))
+            self.log.debug("Uploaded %s to %s" % (image.name, url))
             return image_id, url
         except AttributeError:
-            self.log.error('Could not upload %s' % image['name'])
+            self.log.error('Could not upload %s' % image.name)
             return None, None
-
-    def set_product_featured_image(self, post_id, image_url):
-        """
-            Updates the product selected with `post_id` to have
-            the featured image be `image_url`
-
-            Returns the result as JSON
-        """
-        # self.log.info(
-        #     'Updating Product id: %s with %s as the featured image' % (post_id, image_url)
-        # )
-
-        # data = {'images': [{'src': image_url}]}
-        # return self.api.put('products/%d' % (post_id), data).json()
-        pass
 
     def upload_product_images(self, item_id):
         """
@@ -317,7 +281,6 @@ class WooCommerceShim(Database):
                 if image_id and url:
                     self.db_metadata_uploaded(image_id, item_id)
                     gallery.append({'id': image_id})
-                    # self.set_product_featured_image(post_id, url)
 
             # Add the images to the gallery
             self.api.put('products/%d' % (post_id), {'images': gallery}).json()
