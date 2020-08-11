@@ -417,15 +417,35 @@ class WooCommerceShim(Database):
     def update_product_metadata(self, item_id):
         post_id = self.db_woo_get_post_id(item_id)
         attributes = list()
+        attributes_to_upload = list()
 
         if post_id is not None:
             attributes = self.db_get_all_product_metadata(item_id)
+
+            # Strip out any pictures
             attributes = [
                 attribute
                 for attribute in attributes
                 if attribute['key'] != 'picture_url'
             ]
-            self.api.put('products/%d' % (post_id), {'attributes': attributes, 'default_attributes': attributes}).json()
+
+            # Format the attributes in a way that WooCommerce is expecting
+            for attribute in attributes:
+                attributes_to_upload.append({
+                    'name': attribute['key'],
+                    'options': [
+                        attribute['value']
+                    ],
+                    "visible": True,
+                    "variation": False,
+                })
+
+            options = {
+                'attributes': attributes_to_upload,
+                'default_attributes': attributes_to_upload
+            }
+            self.api.put('products/%d' % (post_id), options).json()
+            self.log.info("Attributes Added for item: %d" % (item_id))
         else:
             self.log.warning('The product %d has not yet been uploaded' % (item_id))
 

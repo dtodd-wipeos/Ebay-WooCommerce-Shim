@@ -51,10 +51,7 @@ class Server:
             Once we have gotten all of the items above,
             we can get the ItemSpecifics and Description fields
         """
-        # Disable downloading metadata due to the need to map attributes
-        # And I hit the time constraints to get this launched
-        # self.ebay.try_command('get_item_metadata')
-        pass
+        self.ebay.try_command('get_item_metadata')
 
     def __woo_upload_products(self):
         """
@@ -74,8 +71,6 @@ class Server:
 
         for item_id in self.active_item_ids:
             self.woo.try_command('upload_images', item_id)
-            # Disable uploading attributes due to the need to map them
-            # And I hit the time constraints to get this launched
             self.woo.try_command('upload_attributes', item_id)
 
     def __woo_delete_products(self):
