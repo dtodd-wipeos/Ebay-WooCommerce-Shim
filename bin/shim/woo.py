@@ -203,13 +203,13 @@ class WooCommerceShim(Database):
                         self.log.error(msg % (item_id, mime_type))
                         continue
 
-                    return_images.append(Image(
-                        slug = slug,
-                        ebay_url = url,
-                        name = filename,
-                        mime_type = mime_type,
-                        data = req.content
-                    ))
+                    return_images.append(Image({
+                        'slug': slug,
+                        'ebay_url': url,
+                        'name': filename,
+                        'mime_type': mime_type,
+                        'data': req.content,
+                    }))
 
                     self.log.info("Image %s downloaded" % (filename))
 
