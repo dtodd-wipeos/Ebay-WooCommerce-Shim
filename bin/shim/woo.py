@@ -435,10 +435,12 @@ class WooCommerceShim(Database):
 
             self.delete_product_images(post_id)
 
-            if response.get('status') and response['status'] == 404:
+            status_code = response.get('data', dict).get('staus', 500)
+
+            if status_code == 404:
                 self.log.warning("Product was already deleted")
 
-            elif response.get('status') and response['status'] < 300 and response['status'] > 199:
+            elif status_code < 300 and status_code > 199:
                 self.log.info('Product deleted')
 
             else:
