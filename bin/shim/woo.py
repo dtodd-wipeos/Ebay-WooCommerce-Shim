@@ -79,10 +79,8 @@ class WooCommerceShim(Database):
             This method is unreliable! Duplicates are basically guarenteed to happen...
         """
 
-        self.log.debug('Checking if a file has a slug matching: %s' % (slug))
+        self.log.info('Checking if a file has a slug matching: %s' % (slug))
         result = self.wp_api.get('/media?slug=%s' % (slug)).json()
-
-        self.log.debug(result)
 
         if len(result) == 0:
             return False
@@ -168,7 +166,7 @@ class WooCommerceShim(Database):
 
     def download_product_images_from_ebay(self, item_id):
         """
-            Downloads all of the images for a provided `item_id` and 
+            Downloads all of the images for a provided `item_id` and
             returns a dictionary containing the image name, mime type, and
             bytes-like object for the raw images
 
@@ -297,12 +295,13 @@ class WooCommerceShim(Database):
 
             Returns the result as JSON
         """
-        self.log.info(
-            'Updating Product id: %s with %s as the featured image' % (post_id, image_url)
-        )
+        # self.log.info(
+        #     'Updating Product id: %s with %s as the featured image' % (post_id, image_url)
+        # )
 
-        data = {'images': [{'src': image_url}]}
-        return self.api.put('products/%d' % (post_id), data).json()
+        # data = {'images': [{'src': image_url}]}
+        # return self.api.put('products/%d' % (post_id), data).json()
+        pass
 
     def upload_product_images(self, item_id):
         """
@@ -326,7 +325,7 @@ class WooCommerceShim(Database):
                 self.db_metadata_uploaded(image_id, item_id)
                 if image_id and url:
                     gallery.append({'id': image_id})
-                    self.set_product_featured_image(post_id, url)
+                    # self.set_product_featured_image(post_id, url)
 
             # Add the images to the gallery
             self.api.put('products/%d' % (post_id), {'images': gallery}).json()
@@ -434,7 +433,6 @@ class WooCommerceShim(Database):
             response = self.api.delete('products/%d' % (post_id), params={'force': True}).json()
 
             self.delete_product_images(post_id)
-
             status_code = response.get('data', dict).get('staus', 500)
 
             if status_code == 404:
