@@ -76,7 +76,7 @@ class Server:
             self.woo.try_command('upload_images', item_id)
             # Disable uploading attributes due to the need to map them
             # And I hit the time constraints to get this launched
-            # self.woo.try_command('upload_attributes', item_id)
+            self.woo.try_command('upload_attributes', item_id)
 
     def __woo_delete_products(self):
         """

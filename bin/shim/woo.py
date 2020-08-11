@@ -414,6 +414,21 @@ class WooCommerceShim(Database):
                 self.delete_product_images(post_id)
 
 
+    def update_product_metadata(self, item_id):
+        post_id = self.db_woo_get_post_id(item_id)
+        attributes = list()
+        
+        if post_id is not None:
+            attributes = self.db_get_all_product_metadata(item_id)
+            self.log.debug(attributes)
+            # for attribute in attributes:
+                # if attribute.get("key") == "picture_url":
+                #     attributes.pop(attribute)
+                #     print(attributes)
+            # self.api.put('products/%d' % (post_id), {'attributes': attributes, 'default_attributes': attributes}).json()
+        else:
+            self.log.warning('The product %d has not yet been uploaded' % (item_id))
+
     def try_command(self, command, data):
         """
             Wrapper for running methods.
@@ -435,6 +450,7 @@ class WooCommerceShim(Database):
             'delete_product',
             'upload_images',
             'delete_all_products',
+            'upload_attributes',
         ]
 
         err_msg = "Command %s is unrecognized. Supported commands are: %s" % (
@@ -456,6 +472,8 @@ class WooCommerceShim(Database):
 
             elif command == 'delete_all_products':
                 return self.delete_all_products_in_range(data)
+            elif command == 'upload_attributes':
+                return self.update_product_metadata(data)
 
             else:
                 self.log.exception(err_msg)
