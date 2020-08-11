@@ -6,6 +6,13 @@ It will run as an isolated micro service, in a minimal, [Apline](https://alpinel
 it will update its database with ebay events (sold status, and new product listings), which will determine
 what gets updated on the WooCommerce site.
 
+## Things to fix
+
+* Product Attributes are getting uploaded, but do not appear until manually clicking "update" on each product in the admin interface
+* You have to run the program twice. First to download all the products from ebay, and a second time to upload them. They should all happen in the same execution call
+* Switch product uploads to a bulk action to save on tons of time. Products take ~1 second per api request; With 250, this took over an hour (when also uploading images) - https://woocommerce.github.io/woocommerce-rest-api-docs/?python#batch-update-products
+* Possibly bulk upload images
+
 ## Getting Started
 
 The workflow is mostly the same for development and production, except the goal for development is to not spend
