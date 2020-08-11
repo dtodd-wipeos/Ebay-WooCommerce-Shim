@@ -67,12 +67,13 @@ class Server:
             have the post ids for each product, which is
             required to upload any images or other attributes
         """
+        pass
 
-        for item_id in self.active_item_ids:
+        # for item_id in self.active_item_ids:
             # self.woo.try_command('set_featured_image', item_id)
             # Disable uploading images due to duplication bug. We have
             # a wordpress plugin that handles the image downloading
-            self.woo.try_command('upload_images', item_id)
+            # self.woo.try_command('upload_images', item_id)
             # Disable uploading attributes due to the need to map them
             # And I hit the time constraints to get this launched
             # self.woo.try_command('upload_attributes', item_id)
