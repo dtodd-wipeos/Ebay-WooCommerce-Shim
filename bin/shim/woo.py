@@ -314,22 +314,24 @@ class WooCommerceShim(Database):
         ]
 
         # Format the attributes in a way that WooCommerce is expecting
-        for attribute in attributes:
+        for index, attribute in enumerate(attributes):
             attributes_to_upload.append({
                 'name': attribute['key'],
                 'options': [ attribute['value'] ],
-                "visible": True,
-                "variation": True,
+                'visible': True,
+                'variation': True,
+                'position': index,
             })
 
         upload_data = {
             'name': product['title'],
             'type': 'simple',
+            'status': 'publish',
             'short_description': product['condition_description'],
             'description': DEFAULT_DESCRIPTION,
             'sku': product['sku'],
-            'attributes': attributes_to_upload,
-            'default_attributes': attributes_to_upload,
+            # 'attributes': attributes_to_upload,
+            # 'default_attributes': attributes_to_upload,
         }
 
         # Add the category id
@@ -338,6 +340,8 @@ class WooCommerceShim(Database):
             upload_data['categories'] = [{ 'id': category_id }]
 
         res = self.api.post('products', upload_data).json()
+
+        self.log.debug(res)
 
         if res.get('id', False):
             self.db_product_uploaded(res['id'], item_id)
