@@ -1,0 +1,189 @@
+{
+    "wc-id": 1,
+    "ebay_ids": [
+      "Brand"
+    ],
+    "wc-name": "brands"
+},
+{
+    "wc-id": 2,
+    "ebay_ids": [
+      "Color"
+    ],
+    "wc-name": "color"
+},
+{
+    "wc-id": 3,
+    "ebay_ids": [
+      "Condition"
+    ],
+    "wc-name": "condition"
+},
+{
+    "wc-id": 4,
+    "ebay_ids": [
+      "MPN"
+    ],
+    "wc-name": "MPN"
+},
+{
+    "wc-id": 5,
+    "ebay_ids": [
+      "UPC"
+    ],
+    "wc-name": "UPC"
+},
+{
+    "wc-id": 6,
+    "ebay_ids": [
+      "Bus Speed"
+    ],
+    "wc-name": "Bus Speed"
+},
+{
+    "wc-id": 7,
+    "ebay_ids": [
+      "CPU Brand"
+    ],
+    "wc-name": "CPU brand"
+},
+{
+    "wc-id": 8,
+    "ebay_ids": [
+      "CPU Clock Speed"
+    ],
+    "wc-name": "CPU Clock Speed"
+},
+{
+    "wc-id": 9,
+    "ebay_ids": [
+      "CPU Series"
+    ],
+    "wc-name": "CPU Series"
+},
+{
+    "wc-id": 10,
+    "ebay_ids": [
+      "Cache"
+    ],
+    "wc-name": "Cache"
+},
+{
+    "wc-id": 11,
+    "ebay_ids": [
+      "Capacity per Module"
+    ],
+    "wc-name": "Capacity"
+},
+{
+    "wc-id": 12,
+    "ebay_ids": [
+      "Channels"
+    ],
+    "wc-name": "Channels"
+},
+{
+    "wc-id": 13,
+    "ebay_ids": [
+      "Compatible CPU Brand"
+    ],
+    "wc-name": "Compatible CPU Brand"
+},
+{
+    "wc-id": 14,
+    "ebay_ids": [
+      "Compatible Port/Slot"
+    ],
+    "wc-name": "Port/Slot"
+},
+{
+    "wc-id": 15,
+    "ebay_ids": [
+      "Country/Region of Manufacture"
+    ],
+    "wc-name": "Country of Manufacture"
+},
+{
+    "wc-id": 16,
+    "ebay_ids": [
+      "Form Factor"
+    ],
+    "wc-name": "Form Factor"
+},
+{
+    "wc-id": 17,
+    "ebay_ids": [
+      "Input Type", "Input/Output Ports"
+    ],
+    "wc-name": "Input Type(s)"
+},
+{
+    "wc-id": 18,
+    "ebay_ids": [
+      "Interface"
+    ],
+    "wc-name": "Interface"
+},
+{
+    "wc-id": 19,
+    "ebay_ids": [
+      "Max. Output Power"
+    ],
+    "wc-name": "Max Power Output"
+},
+{
+    "wc-id": 20,
+    "ebay_ids": [
+      "Model"
+    ],
+    "wc-name": "Model"
+},
+{
+    "wc-id": 21,
+    "ebay_ids": [
+      "Memory Type"
+    ],
+    "wc-name": "Memory Type"
+},
+{
+    "wc-id": 22,
+    "ebay_ids": [
+      "Number of Memory Slots"
+    ],
+    "wc-name": "Number of Memory Slots"
+},
+{
+    "wc-id": 23,
+    "ebay_ids": [
+      "Number of Modules"
+    ],
+    "wc-name": "Number of Modules"
+},
+{
+    "wc-id": 24,
+    "ebay_ids": [
+      "Rotation Speed"
+    ],
+    "wc-name": "Rotation Speed"
+},
+{
+    "wc-id": 25,
+    "ebay_ids": [
+      "SATA Form Factor"
+    ],
+    "wc-name": "SATA Form Factor"
+},
+{
+    "wc-id": 26,
+    "ebay_ids": [
+      "Storage Capacity", , "SSD Capacity", "Hard Drive Capacity"
+    ],
+    "wc-name": "Storage Capacity"
+},
+{
+    "wc-id": 27,
+    "ebay_ids": [
+      "Storage Type"
+    ],
+    "wc-name": "Storage Type"
+},
