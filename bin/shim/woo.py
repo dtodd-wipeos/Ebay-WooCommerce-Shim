@@ -289,23 +289,6 @@ class WooCommerceShim(Database):
 
         return self
 
-    def get_and_set_featured_image(self, item_id):
-        """
-            With the provided `item_id`, the local database
-            is searched for a post_id that maps to that ebay
-            item. The product is then fetched and if it has
-            images, update them (this will set the featured
-            image on that product)
-        """
-        self.log.info('Setting featured image on %s' % (item_id))
-        post_id = self.db_woo_get_post_id(item_id)
-        if post_id is not None:
-            product = self.api.get('products/%d' % (post_id)).json()
-
-            if product.get('images'):
-                data = {'images': product.get('images')}
-                return self.api.put('products/%d' % (post_id), data)
-
     def create_product(self, item_id):
         """
             Pulls the product related to the `item_id`
@@ -452,7 +435,6 @@ class WooCommerceShim(Database):
             'delete_product',
             'upload_images',
             'delete_all_products',
-            'set_featured_image',
         ]
 
         err_msg = "Command %s is unrecognized. Supported commands are: %s" % (
@@ -471,9 +453,6 @@ class WooCommerceShim(Database):
 
             elif command == 'upload_images':
                 return self.upload_product_images(data)
-
-            elif command == 'set_featured_image':
-                return self.get_and_set_featured_image(data)
 
             elif command == 'delete_all_products':
                 return self.delete_all_products_in_range(data)
