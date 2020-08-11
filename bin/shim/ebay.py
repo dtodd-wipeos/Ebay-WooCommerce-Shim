@@ -43,10 +43,10 @@ class EbayShim(Database):
 
         # Setup Internals
         # Contains the range of listings to search (defined at `set_date_range`)
-        self.date_range = {}
+        self.date_range = dict()
         # Contains the filters that are applied to
         # seller events searching (defined at `set_range_filter`)
-        self.seller_filter_dict = {}
+        self.seller_filter_dict = dict()
         # Contains all item ids that are currently active (defined at `get_item_ids`)
         self.got_item_ids = self.db_ebay_get_got_item_ids()
 
@@ -139,7 +139,7 @@ class EbayShim(Database):
             # based on `days`, which defaults to the same day
             self.log.warning('No Stop Date provided, defaulting to Start Date + %d' % (days))
             stop_date = start_date + datetime.timedelta(days)
-        
+
         # Convert dates into ISO 8601 (required by the API)
         # Start date is at the absolute beginning of the day
         start_date = start_date.strftime('%Y-%m-%dT00:00:00.000Z')
