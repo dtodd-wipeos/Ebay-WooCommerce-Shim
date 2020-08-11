@@ -15,6 +15,7 @@ from urllib3.exceptions import ReadTimeoutError
 
 from .db import Database
 from .util import LOG_HANDLER
+from .image import Image
 
 from woocommerce import API as WCAPI
 from wordpress import API as WPAPI
@@ -57,8 +58,6 @@ class WooCommerceShim(Database):
             consumer_key=False,
             consumer_secret=False
         )
-
-        self.downloaded_images = {}
 
         mapping_path = os.environ.get('category_mapping',
                                       'database/ebay-to-woo-commerce-category-map.json')
@@ -175,12 +174,13 @@ class WooCommerceShim(Database):
         """
 
         count = 0
+        return_images = list()
 
         images = self.db_get_product_image_urls(item_id)
         image_urls_count = len(images)
 
         if image_urls_count > 0:
-            self.log.debug("Found %d image URLs for: %s" % (image_urls_count, item_id))
+            self.log.info("Found %d image URLs for: %s" % (image_urls_count, item_id))
 
             for image in images:
                 url = image.get('value', '')
@@ -198,29 +198,24 @@ class WooCommerceShim(Database):
                     extension = mime_type.split('/')[1]
                     filename = '%s.%s' % (slug, extension)
 
-                    if filename in self.downloaded_images:
-                        msg = "%s has already been stored internally. Skipped"
-                        self.log.warning(msg % (filename))
-                        continue
-
                     if 'image' not in mime_type:
                         msg = "%d didn't get an image somehow. Content type was: %s"
                         self.log.error(msg % (item_id, mime_type))
                         continue
 
-                    self.downloaded_images[filename] = {
-                        'slug': slug,
-                        'ebay_url': url,
-                        'name': filename,
-                        'type': mime_type,
-                        'data': req.content,
-                    }
+                    return_images.append(Image(
+                        slug = slug,
+                        ebay_url = url,
+                        name = filename,
+                        mime_type = mime_type,
+                        data = req.content
+                    ))
 
                     self.log.info("Image %s downloaded" % (filename))
 
                     if count < image_urls_count:
-                        self.log.info("Waiting 1 seconds until next download")
-                        time.sleep(1)
+                        self.log.info("Waiting a quarter second until next download")
+                        time.sleep(0.25)
                 else:
                     self.log.error(
                         "No content returned. Is %s reachable in a browser?" % (url)
@@ -230,7 +225,7 @@ class WooCommerceShim(Database):
         else:
             self.log.warning("No Image URLs found for item: %s" % (item_id))
 
-        return self
+        return return_images
 
     def upload_image_to_woocommerce(self, image, post_id):
         """
@@ -317,13 +312,10 @@ class WooCommerceShim(Database):
         gallery = []
 
         if post_id is not None:
-            self.download_product_images_from_ebay(item_id)
-            # FIXME: Make this get only the images associated with the item_id
-            # Otherwise, we iterate over EVERY image for EVERY item
-            for image in self.downloaded_images:
-                image_id, url = self.upload_image_to_woocommerce(self.downloaded_images[image], post_id)
-                self.db_metadata_uploaded(image_id, item_id)
+            for image in self.download_product_images_from_ebay(item_id):
+                image_id, url = self.upload_image_to_woocommerce(image, post_id)
                 if image_id and url:
+                    self.db_metadata_uploaded(image_id, item_id)
                     gallery.append({'id': image_id})
                     # self.set_product_featured_image(post_id, url)
 
