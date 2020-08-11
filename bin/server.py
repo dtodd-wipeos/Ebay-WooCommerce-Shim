@@ -51,7 +51,8 @@ class Server:
             Once we have gotten all of the items above,
             we can get the ItemSpecifics and Description fields
         """
-        self.ebay.try_command('get_item_metadata')
+        # self.ebay.try_command('get_item_metadata')
+        pass
 
     def __woo_upload_products(self):
         """
@@ -68,7 +69,6 @@ class Server:
             have the post ids for each product, which is
             required to upload any images or other attributes
         """
-
         for item_id in self.active_item_ids:
             self.woo.try_command('upload_images', item_id)
 
