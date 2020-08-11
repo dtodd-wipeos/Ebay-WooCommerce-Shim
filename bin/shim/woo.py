@@ -333,7 +333,7 @@ class WooCommerceShim(Database):
         }
 
         # Add the category id
-        category_id = self.get_mapped_category_id(data.get('category_id', 0))
+        category_id = self.get_mapped_category_id(product.get('category_id', 0))
         if category_id is not None:
             upload_data['categories'] = [{ 'id': category_id }]
 
