@@ -399,11 +399,20 @@ class WooCommerceShim(Database):
 
         return self
 
-    def delete_product_images(self, post_id):
-        self.log.info('Deleting media %d from WordPress' % (post_id))
-        response = self.api.delete('media/%d' % (post_id), params={'force': True}).json()
-        self.log.debug(response)
-        return response
+    def delete_product_images(self, item_id):
+        """
+            With the provided `item_id`, an API request will
+            be made to WooCommerce to identify all images
+            associted with it. Then, it will delete each of
+            those images.
+        """
+
+        pass
+
+        # self.log.info('Deleting media %d from WordPress' % (image_id))
+        # response = self.api.delete('media/%d' % (image_id), params={'force': True}).json()
+        # self.log.debug(response)
+        # return response
 
     def delete_product(self, item_id):
         """
