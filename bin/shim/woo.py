@@ -15,6 +15,7 @@ from urllib3.exceptions import ReadTimeoutError
 
 from .db import Database
 from .util import LOG_HANDLER
+from .image import Image
 
 from woocommerce import API as WCAPI
 from wordpress import API as WPAPI
@@ -58,8 +59,6 @@ class WooCommerceShim(Database):
             consumer_secret=False
         )
 
-        self.downloaded_images = {}
-
         mapping_path = os.environ.get('category_mapping',
                                       'database/ebay-to-woo-commerce-category-map.json')
         try:
@@ -79,27 +78,10 @@ class WooCommerceShim(Database):
             This method is unreliable! Duplicates are basically guarenteed to happen...
         """
 
-        self.log.debug('Checking if a file has a slug matching: %s' % (slug))
+        self.log.info('Checking if a file has a slug matching: %s' % (slug))
         result = self.wp_api.get('/media?slug=%s' % (slug)).json()
 
-        self.log.debug(result)
-
         if len(result) == 0:
-            return False
-        return True
-
-    def __does_image_have_post_id(self, image):
-        """
-            Alternate method for determining if an image has already been uploaded
-
-            Takes `image`, which is a dictionary containing various data about it
-            (generated from self.download_product_images_from_ebay()) and queries
-            the database for its post id (using the ebay_url, which should be unique)
-
-            Returns True in the case that a post id is not returned, and False
-            otherwise
-        """
-        if self.db_get_metadata_post_id_from_value(image.get('ebay_url')) is None:
             return False
         return True
 
@@ -168,7 +150,7 @@ class WooCommerceShim(Database):
 
     def download_product_images_from_ebay(self, item_id):
         """
-            Downloads all of the images for a provided `item_id` and 
+            Downloads all of the images for a provided `item_id` and
             returns a dictionary containing the image name, mime type, and
             bytes-like object for the raw images
 
@@ -177,21 +159,22 @@ class WooCommerceShim(Database):
         """
 
         count = 0
+        return_images = list()
 
-        images = self.db_get_product_image_urls(item_id)
-        image_urls_count = len(images)
+        image_urls = self.db_get_product_image_urls(item_id)
+        image_urls_count = len(image_urls)
 
         if image_urls_count > 0:
-            self.log.debug("Found %d image URLs for: %s" % (image_urls_count, item_id))
+            self.log.info("Found %d image URLs for: %s" % (image_urls_count, item_id))
 
-            for image in images:
+            for image in image_urls:
                 url = image.get('value', '')
 
                 if image.get('post_id') is not None:
                     self.log.warning("We've already uploaded %s, skipping download" % (url))
                     continue
 
-                self.log.debug("Downloading %s" % (url))
+                self.log.info("Downloading %s" % (url))
                 req = requests.get(url)
 
                 if req.content:
@@ -200,29 +183,24 @@ class WooCommerceShim(Database):
                     extension = mime_type.split('/')[1]
                     filename = '%s.%s' % (slug, extension)
 
-                    if filename in self.downloaded_images:
-                        msg = "%s has already been stored internally. Skipped"
-                        self.log.warning(msg % (filename))
-                        continue
-
                     if 'image' not in mime_type:
                         msg = "%d didn't get an image somehow. Content type was: %s"
                         self.log.error(msg % (item_id, mime_type))
                         continue
 
-                    self.downloaded_images[filename] = {
-                        'slug': slug,
-                        'ebay_url': url,
-                        'name': filename,
-                        'type': mime_type,
-                        'data': req.content,
-                    }
+                    return_images.append(Image(
+                        slug = slug,
+                        ebay_url = url,
+                        name = filename,
+                        mime_type = mime_type,
+                        data = req.content
+                    ))
 
-                    self.log.info("Image %s downloaded" % (filename))
+                    # self.log.info("Image %s downloaded" % (filename))
 
                     if count < image_urls_count:
-                        self.log.info("Waiting 1 seconds until next download")
-                        time.sleep(1)
+                        self.log.debug("Waiting a quarter second until next download")
+                        time.sleep(0.25)
                 else:
                     self.log.error(
                         "No content returned. Is %s reachable in a browser?" % (url)
@@ -232,7 +210,7 @@ class WooCommerceShim(Database):
         else:
             self.log.warning("No Image URLs found for item: %s" % (item_id))
 
-        return self
+        return return_images
 
     def upload_image_to_woocommerce(self, image, post_id):
         """
@@ -255,53 +233,34 @@ class WooCommerceShim(Database):
             if the image fails to be uploaded
         """
 
-        self.log.info("Uploading %s to wordpress" % (image.get('name')))
+        self.log.info("Uploading %s to wordpress" % (image.name))
 
         endpoint = '/media?post=%d' % (post_id)
 
         headers = {
             'cache-control': 'no-cache',
-            'content-disposition': 'attachment; filename=%s' % (image.get('name')),
-            'content-type': '%s' % (image.get('type'))
+            'content-disposition': 'attachment; filename=%s' % (image.name),
+            'content-type': '%s' % (image.mime_type)
         }
 
         # Don't upload a duplicate image if it was uploaded in the past
-        if self.__does_image_exist_on_woocommerce(image.get('slug')):
+        if self.__does_image_exist_on_woocommerce(image.slug):
             self.log.warning(
-                "Image %s already exists on wordpress. Not uploading again" % (image.get('name'))
+                "Image %s already exists on wordpress. Not uploading again" % (image.name)
             )
-            return False
-
-        if self.__does_image_have_post_id(image):
-            self.log.warning(
-                "We already have a post_id for %s. Not uploading again" % (image.get('name'))
-            )
-            return False
+            return None, None
 
         # Upload the image
-        uploaded = self.wp_api.post(endpoint, image.get('data'), headers=headers)
+        response = self.wp_api.post(endpoint, image.data, headers=headers)
 
         try:
-            url = uploaded.json().get('guid', dict).get('raw')
-            self.log.debug("Uploaded %s to %s" % (image['name'], url))
-            return url
+            image_id = response.json().get('id')
+            url = response.json().get('guid', dict).get('raw')
+            self.log.debug("Uploaded %s to %s" % (image.name, url))
+            return image_id, url
         except AttributeError:
-            self.log.error('Could not upload %s' % image['name'])
-            return False
-
-    def set_product_featured_image(self, post_id, image_url):
-        """
-            Updates the product selected with `post_id` to have
-            the featured image be `image_url`
-
-            Returns the result as JSON
-        """
-        self.log.info(
-            'Updating Product id: %s with %s as the featured image' % (post_id, image_url)
-        )
-
-        data = {'images': [{'src': image_url}]}
-        return self.api.put('products/%d' % (post_id), data).json()
+            self.log.error('Could not upload %s' % image.name)
+            return None, None
 
     def upload_product_images(self, item_id):
         """
@@ -317,12 +276,11 @@ class WooCommerceShim(Database):
         gallery = []
 
         if post_id is not None:
-            self.download_product_images_from_ebay(item_id)
-            for image in self.downloaded_images:
-                url = self.upload_image_to_woocommerce(self.downloaded_images[image], post_id)
-                if url:
-                    self.set_product_featured_image(post_id, url)
-                    gallery.append({'src': url})
+            for image in self.download_product_images_from_ebay(item_id):
+                image_id, url = self.upload_image_to_woocommerce(image, post_id)
+                if image_id and url:
+                    self.db_metadata_uploaded(image_id, item_id)
+                    gallery.append({'id': image_id})
 
             # Add the images to the gallery
             self.api.put('products/%d' % (post_id), {'images': gallery}).json()
@@ -330,23 +288,6 @@ class WooCommerceShim(Database):
             self.log.warning('The product %d has not yet been uploaded' % (item_id))
 
         return self
-
-    def get_and_set_featured_image(self, item_id):
-        """
-            With the provided `item_id`, the local database
-            is searched for a post_id that maps to that ebay
-            item. The product is then fetched and if it has
-            images, update them (this will set the featured
-            image on that product)
-        """
-        self.log.info('Setting featured image on %s' % (item_id))
-        post_id = self.db_woo_get_post_id(item_id)
-        if post_id is not None:
-            product = self.api.get('products/%d' % (post_id)).json()
-
-            if product.get('images'):
-                data = {'images': product.get('images')}
-                return self.api.put('products/%d' % (post_id), data)
 
     def create_product(self, item_id):
         """
@@ -395,8 +336,20 @@ class WooCommerceShim(Database):
 
         return self
 
-    def delete_product_images(self, post_id):
+    def delete_product_images(self, item_id):
+        """
+            With the provided `item_id`, an API request will
+            be made to WooCommerce to identify all images
+            associted with it. Then, it will delete each of
+            those images.
+        """
+
         pass
+
+        # self.log.info('Deleting media %d from WordPress' % (image_id))
+        # response = self.api.delete('media/%d' % (image_id), params={'force': True}).json()
+        # self.log.debug(response)
+        # return response
 
     def delete_product(self, item_id):
         """
@@ -418,12 +371,21 @@ class WooCommerceShim(Database):
             response = self.api.delete('products/%d' % (post_id), params={'force': True}).json()
 
             self.delete_product_images(post_id)
+            status_code = response.get('data', dict).get('staus', 500)
 
-            self.log.debug(response)
+            if status_code == 404:
+                self.log.warning("Product was already deleted")
+
+            elif status_code < 300 and status_code > 199:
+                self.log.info('Product deleted')
+
+            else:
+                self.log.debug(response)
+
             return response
         return None
 
-    def delete_all_products_in_range(self, id_range):
+    def delete_all_products_in_range(self, id_range, chunk_size=100):
         """
             With a provided `id_range`, which is expected to be
             a `range` or `list` type, multiple bulk requests
@@ -440,7 +402,7 @@ class WooCommerceShim(Database):
         # The API says that it supports chunks up to 100 items, but in testing
         # it would always time out, even if it successfully deleted the items
         # with any chunk size greater than or equal to 50
-        for chunk in self.__divide_into_chunks(id_range, 49):
+        for chunk in self.__divide_into_chunks(id_range, chunk_size):
             post_ids = list(chunk)
             data = {
                 'delete': post_ids
@@ -473,7 +435,6 @@ class WooCommerceShim(Database):
             'delete_product',
             'upload_images',
             'delete_all_products',
-            'set_featured_image',
         ]
 
         err_msg = "Command %s is unrecognized. Supported commands are: %s" % (
@@ -492,9 +453,6 @@ class WooCommerceShim(Database):
 
             elif command == 'upload_images':
                 return self.upload_product_images(data)
-
-            elif command == 'set_featured_image':
-                return self.get_and_set_featured_image(data)
 
             elif command == 'delete_all_products':
                 return self.delete_all_products_in_range(data)
