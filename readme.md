@@ -6,9 +6,12 @@ It will run as an isolated micro service, in a minimal, [Apline](https://alpinel
 it will update its database with ebay events (sold status, and new product listings), which will determine
 what gets updated on the WooCommerce site.
 
-## Things to fix
+## Known Bugs and Issues
 
-* Product Attributes are getting uploaded, but do not appear until manually clicking "update" on each product in the admin interface
+Even though I was working on this on an off for a couple months, with about a month dedicated to the program, it's still got some issues.
+
+* ~~The Threading is behaving weirdly when starting the various queues - They seem to be waiting sequentially. This could be due to the fact that a Queue will block its parent thread until its child threads have been finished.~~ We are not multi-threading.
+* ~~Product Attributes are getting uploaded, but do not appear until manually clicking "update" on each product in the admin interface~~ Couldn't make the attributes appear without manual intervention, so ItemSpecifics are no-longer being downloaded.
 * You have to run the program twice. First to download all the products from ebay, and a second time to upload them. They should all happen in the same execution call
 * Switch product uploads to a bulk action to save on tons of time. Products take ~1 second per api request; With 250, this took over an hour (when also uploading images) - https://woocommerce.github.io/woocommerce-rest-api-docs/?python#batch-update-products
 * Possibly bulk upload images
@@ -108,22 +111,13 @@ Once you have those fields, throw them into the mapping json file with `id` bein
 Under every `wc-id` key, include a new key called `ebay_ids`, which contains a list (or array in JSON speak)
 
 Now to fetch the categories that are in use. What I've done is fetch all products using `GetSellerList` and then issued a SQL query similar to the following:
-`SELECT DISTINCT category_name, category_id from items where active = 'Active';` on the `ebay_items.db` database. 
+`SELECT DISTINCT category_name, category_id from items where active = 'Active';` on the `ebay_items.db` database.
 
 Finally, populate the lists for the categories with ids that are close enough in terms of the category description
 
-## Known Bugs and Issues
-
-Even though I was working on this on an off for a couple months, with about a month dedicated to the program, it's still got some issues.
-
-1. Uploaded images are duplicating on the site - This isn't a huge issue immediately, but it does mean that we'll be consuming double the storage space
-1. The Threading is behaving weirdly when starting the various queues - They seem to be waiting sequentially. This could be due to the fact that a Queue will block its parent thread until its child threads have been finished.
-1. We're not uploading product attributes (ItemSpecifics) due to the fact that they have to be mapped - Due to this, we are not even pulling the attributes
-1. There is currently no way to delete a product once it is marked as either completed or the end date has been reached on ebay
-
 ### MySQL - REMOVED
 
-This block here for historical reasons
+This block here for historical reasons. This program does not do anything with mysql.
 
 The parts that I couldn't get working within a reasonable timeframe are uploading product images and uploading ItemSpecifics (specs).
 
