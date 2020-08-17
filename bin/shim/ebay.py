@@ -227,7 +227,7 @@ class EbayShim(Database):
                     self.pagination_total_items = 0
             else:
                 self.pagination_total_pages = 0
-        
+
         return self
 
     def get_item_metadata(self):
