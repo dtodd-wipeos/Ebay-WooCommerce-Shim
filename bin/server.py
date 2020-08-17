@@ -32,9 +32,6 @@ class Server:
         self.active_item_ids = self.woo.db_get_active_item_ids()
         self.inactive_item_ids = self.woo.db_get_inactive_uploaded_item_ids()
 
-        # Testing - TODO: Remove this
-        self.active_item_ids = self.active_item_ids[0:250]
-
     def __ebay_download_products(self):
         """
             Sets up a date filter to get all items that will
@@ -42,8 +39,7 @@ class Server:
             gets the products from that
         """
         self.log.info('Setting date range filter to today and ending at 35 days in the future')
-        # days=35
-        self.ebay.set_date_range(start_date='', days=2, range_type='End').set_range_filter()
+        self.ebay.set_date_range(start_date='', days=35, range_type='End').set_range_filter()
         self.ebay.try_command('get_seller_list')
 
     def __ebay_download_metadata(self):
