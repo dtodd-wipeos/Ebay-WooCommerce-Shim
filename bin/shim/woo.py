@@ -368,12 +368,10 @@ class WooCommerceShim(Database):
             those images.
         """
 
-        pass
+        # This feature has not been implemented.
+        # Delete media through wordpress directly
 
-        # self.log.info('Deleting media %d from WordPress' % (image_id))
-        # response = self.api.delete('media/%d' % (image_id), params={'force': True}).json()
-        # self.log.debug(response)
-        # return response
+        pass
 
     def delete_product(self, item_id):
         """
@@ -392,7 +390,11 @@ class WooCommerceShim(Database):
         post_id = self.db_woo_get_post_id(item_id)
         if post_id is not None:
             self.log.info('Deleting %d from WooCommerce' % (item_id))
-            response = self.api.delete('products/%d' % (post_id), params={'force': True}).json()
+            try:
+                response = self.api.delete('products/%d' % (post_id), params={'force': True}).json()
+            except TypeError:
+                self.log.error("Got unexpected response type: %s" % (str(response)))
+                return None
 
             self.delete_product_images(post_id)
             status_code = response.get('data', dict).get('staus', 500)
