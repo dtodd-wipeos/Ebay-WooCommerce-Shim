@@ -13,7 +13,8 @@ isodate = "*"
 woocommerce = "*"
 wordpress-api = "*"
 mysql-connector = "*"
-pdoc = "*"
+pdoc3 = "*"
+markdown = "*"
 
 [requires]
 python_version = "3.8"
