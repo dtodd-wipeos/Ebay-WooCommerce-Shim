@@ -47,8 +47,13 @@ class Server:
             Once we have gotten all of the items above,
             we can get the ItemSpecifics and Description fields
         """
-        # Disable downloading metadata due to the need to map attributes
-        # And I hit the time constraints to get this launched
+        # This is disabled to save on API Calls.
+        # Getting the Item Metadata will create an API call for each active item
+        # and while the details are getting uploaded to WooCommerce, they will not
+        # appear on the customer-facing pages until that individual product's update
+        # button is clicked. This does not work through bulk updates, nor through
+        # various API requests we've made. Ultimately, this is a non-issue, as I
+        # really don't believe this site will be used as it's envisioned.
         # self.ebay.try_command('get_item_metadata')
         pass
 
@@ -67,12 +72,8 @@ class Server:
             have the post ids for each product, which is
             required to upload any images or other attributes
         """
-
         for item_id in self.active_item_ids:
             self.woo.try_command('upload_images', item_id)
-            # Disable uploading attributes due to the need to map them
-            # And I hit the time constraints to get this launched
-            # self.woo.try_command('upload_attributes', item_id)
 
     def __woo_delete_products(self):
         """
@@ -99,14 +100,14 @@ class Server:
 
             This will do the following in order:
             1. Download products from ebay with GetSellerList
-            2. Download product ItemSpecifics with GetItem
-            3. Upload the database to the Wordpress database
-            4. Upload the downloaded products to WooCommerce
-            5. Upload the downloaded product metadata to WooCommerce
-            6. Delete any products that ended on ebay from WooCommerce
+            2. Upload the database to the Wordpress database
+            3. Upload the downloaded products to WooCommerce
+            4. Upload the downloaded product metadata to WooCommerce
+            5. Delete any products that ended on ebay from WooCommerce
         """
         self.__ebay_download_products()
-        self.__ebay_download_metadata()
+        # Disabled. Check the comment inside this method for more info
+        # self.__ebay_download_metadata()
         self.__woo_upload_products()
         self.__woo_upload_metadata()
         self.__woo_delete_products()

@@ -227,7 +227,7 @@ class EbayShim(Database):
                     self.pagination_total_items = 0
             else:
                 self.pagination_total_pages = 0
-        
+
         return self
 
     def get_item_metadata(self):
@@ -283,7 +283,7 @@ class EbayShim(Database):
         if not self.seller_filter_dict.get('DetailLevel', False):
             self.seller_filter_dict['DetailLevel'] = 'ItemReturnDescription'
 
-        # Call `__get_seller_list` sequentially to move to the next page
+        # Call `get_seller_list` sequentially to move to the next page
         self.__update_pagination()
 
         if self.db_ebay_get_request_counter() >= self.rate_limit:
@@ -341,9 +341,6 @@ class EbayShim(Database):
             self.log.info(msg % (items_active, items_inactive))
         else:
             self.log.error('Got no items from the search. Try adjusting the date range')
-
-        # if len(self.got_item_ids) > 0:
-        #     self.get_item_metadata()
 
         return self
 
@@ -403,6 +400,8 @@ class EbayShim(Database):
                     # If there are still items to get, get them
                     while self.pagination_received_items < self.pagination_total_items:
                         self.get_seller_list().__print_response()
+
+                    return self
                 else:
                     self.log.warning("Get Seller List already ran today. Skipping")
 

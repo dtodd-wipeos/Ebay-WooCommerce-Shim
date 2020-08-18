@@ -296,28 +296,52 @@ class WooCommerceShim(Database):
 
             Returns the result as JSON
         """
+        attributes = list()
+        attributes_to_upload = list()
         self.log.info('Creating a WooCommerce product from ebay id: %s' % (item_id))
 
         if self.does_product_exist(item_id):
             self.log.warning('Product with item id %d already exists, skipping' % (item_id))
             return self
 
-        data = self.db_get_product_data(item_id)
+        product = self.db_get_product_data(item_id)
+        attributes = self.db_get_all_product_metadata(item_id)
+
+        # Strip out any pictures
+        attributes = [
+            attribute for attribute in attributes
+            if attribute['key'] != 'picture_url'
+        ]
+
+        # Format the attributes in a way that WooCommerce is expecting
+        for index, attribute in enumerate(attributes):
+            attributes_to_upload.append({
+                'name': attribute['key'],
+                'options': [ attribute['value'] ],
+                'visible': True,
+                'variation': True,
+                'position': index,
+            })
 
         upload_data = {
-            'name': data['title'],
+            'name': product['title'],
             'type': 'simple',
-            'short_description': data['condition_description'],
+            'status': 'publish',
+            'short_description': product['condition_description'],
             'description': DEFAULT_DESCRIPTION,
-            'sku': data['sku'],
+            'sku': product['sku'],
+            # 'attributes': attributes_to_upload,
+            # 'default_attributes': attributes_to_upload,
         }
 
         # Add the category id
-        category_id = self.get_mapped_category_id(data.get('category_id', 0))
+        category_id = self.get_mapped_category_id(product.get('category_id', 0))
         if category_id is not None:
             upload_data['categories'] = [{ 'id': category_id }]
 
         res = self.api.post('products', upload_data).json()
+
+        self.log.debug(res)
 
         if res.get('id', False):
             self.db_product_uploaded(res['id'], item_id)
@@ -344,12 +368,10 @@ class WooCommerceShim(Database):
             those images.
         """
 
-        pass
+        # This feature has not been implemented.
+        # Delete media through wordpress directly
 
-        # self.log.info('Deleting media %d from WordPress' % (image_id))
-        # response = self.api.delete('media/%d' % (image_id), params={'force': True}).json()
-        # self.log.debug(response)
-        # return response
+        pass
 
     def delete_product(self, item_id):
         """
@@ -368,7 +390,11 @@ class WooCommerceShim(Database):
         post_id = self.db_woo_get_post_id(item_id)
         if post_id is not None:
             self.log.info('Deleting %d from WooCommerce' % (item_id))
-            response = self.api.delete('products/%d' % (post_id), params={'force': True}).json()
+            try:
+                response = self.api.delete('products/%d' % (post_id), params={'force': True}).json()
+            except TypeError:
+                self.log.error("Got unexpected response type: %s" % (str(response)))
+                return None
 
             self.delete_product_images(post_id)
             status_code = response.get('data', dict).get('staus', 500)
@@ -412,7 +438,6 @@ class WooCommerceShim(Database):
 
             for post_id in post_ids:
                 self.delete_product_images(post_id)
-
 
     def try_command(self, command, data):
         """
